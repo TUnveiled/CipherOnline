@@ -1,16 +1,22 @@
 <template>
-    <div class="login">
-        <h1>You are logged in.</h1>
-    </div>
+    <div>
+        <userbar></userbar>
+        <div class="login">
+            <h1>You are logged in.</h1>
+        </div>
+        </div>
 </template>
 
 <script>
+
+    import Userbar from "@/components/userbar";
     // eslint-disable-next-line no-unused-vars
     const fb = require('../firebaseConfig.js');
 
 
     export default {
         name: "loggedin",
+        components: {Userbar},
         data() {
             return {
 

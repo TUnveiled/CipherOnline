@@ -5,8 +5,6 @@
             <form @submit.prevent>
                 <input class="register" v-model="username" id="username" type="text" placeholder="Username">
                 <input class="register" v-model="email" id="email" type="text" placeholder="Email Address">
-                <button id="availabilitybtn" v-on:click="checkNameAvailability">Check Availability</button>
-                <p id="availmsg">{{avail}}</p>
                 <input class="register" v-model="password" id="password" type="password" placeholder="Password">
                 <p> Your password must contain at least 8 characters</p>
                 <input class="register" v-model="cpassword" id="confirmpassword" type="password" placeholder="Confirm Password">
@@ -32,25 +30,6 @@
             }
         },
         methods: {
-            checkNameAvailability() {
-
-                /*
-                var formdata = {
-                    args: {
-                        email: this.email,
-                        username: this.username
-                    }
-                };
-                axios.post('/php/checkavail.php', formdata).then(response => {
-                    // response means something went wrong
-                    if (response) {
-                        this.avail = response;
-                    } else {
-                        this.avail = "That username and email address are available";
-                    }
-                });
-                */
-            },
             signup() {
 
                 let valid = true;
@@ -69,7 +48,7 @@
                 }
 
                 // password and confirm password should match
-                if (password.localeCompare(this.cpassword) === 0) {
+                if (password.localeCompare(this.cpassword) !== 0) {
                     this.response += 'Passwords don\'t match\n';
                     valid = false;
                 }
@@ -92,7 +71,7 @@
                             this.response += err;
                         })
                     }).catch(err => {
-                        this.response = +err;
+                        this.response += err;
                     });
 
             }

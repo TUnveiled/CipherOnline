@@ -34,6 +34,8 @@
             submitform() {
 
                 let temp = fb.auth.signInWithEmailAndPassword(this.email, this.password);
+                let store = this.$store;
+                let router = this.$router;
                 temp.catch(function(error) {
                     // Handle Errors here.
                     // var errorCode = error.code;
@@ -41,10 +43,10 @@
                     // ...
                     this.response = error.message;
                 });
-                temp.then(function(user) {
-                    this.$store.commit('setCurrentUser', user.user);
-                    this.$store.dispatch('fetchUserProfile');
-                    this.$router.push('/dashboard');
+                temp.then(function(ret) {
+                    store.commit('setCurrentUser', ret.user);
+                    store.dispatch('fetchUserProfile');
+                    router.push('/dashboard');
                 });
                 /*
                 this.axios.post('//jsonplaceholder.typicode.com/posts', {
