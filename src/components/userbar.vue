@@ -1,9 +1,12 @@
 <template>
-    <div class="main">
-        <table style="width:100%">
+    <div id="userbar">
+        <table style="width:100%; max-height:64px;">
             <tr>
-                <td><h4 style="float: left;"> Logged in as {{name}}</h4></td>
-                <td><button id="logoutbtn" v-on:click="logout">Log Out</button></td>
+                <td><h4 style="float: left;"> Logged in as {{username}}</h4></td>
+                <td>
+                    <button id="logoutbtn" v-on:click="logout">Log Out</button>
+                    <button id="dashboard" v-on:click="dashboard">Dashboard</button>
+                </td>
             </tr>
         </table>
     </div>
@@ -14,9 +17,11 @@
 
     export default {
         name: "userbar",
-        data: function() {return {
-            name: this.$store.state.userProfile.username
-        };},
+        data() {
+            return {
+                username: this.$store.state.userProfile.username
+            };
+        },
         methods: {
             logout() {
                 fb.auth.signOut().then(() => {
@@ -25,29 +30,34 @@
                 }).catch(err => {
                     alert(err);
                 })
+            },
+            dashboard() {
+                this.$router.push('/login');
             }
         }
     }
 </script>
 
 <style scoped>
-    div.main {
+    #userbar {
         color: darkslategrey;
         position: relative;
         border: 3px solid black;
         background-color: darkslategrey;
         width: 80%;
         min-width: 512px;
+        min-height: 64px;
         margin: 0 auto;
         text-align: center;
-        padding: 0px;
+        padding: 0;
         overflow: hidden;
     }
 
-    #logoutbtn {
+    #logoutbtn, #dashboard {
         float: right;
-        max-width: 96px;
-        min-width: 32px;
+        max-width: 128px;
+        min-width: 64px;
+        text-align: center;
     }
 
 </style>

@@ -1,10 +1,13 @@
 <template>
-    <div>
+    <div style="padding:1px">
         <userbar></userbar>
-        <div class="login">
-            <h1>You are logged in.</h1>
+        <div id="maindiv">
+            <h1>You are logged in.</h1><br>
+            <router-link class="link" to="/dashboard">Play (TODO)</router-link><br>
+            <router-link class="link" to="/dashboard">Account (TODO)</router-link><br>
+            <router-link class="link" to="/dashboard">Deckbuilder (TODO)</router-link><br>
         </div>
-        </div>
+    </div>
 </template>
 
 <script>
@@ -30,7 +33,8 @@
 </script>
 
 <style scoped>
-    div.login {
+
+    #maindiv {
         color: darkslategrey;
         position: relative;
         border: 3px solid black;
@@ -42,5 +46,11 @@
         padding: 32px;
         overflow: hidden;
     }
+
+    .link {
+        color: white;
+    }
+
+
 
 </style>
