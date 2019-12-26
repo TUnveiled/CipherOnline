@@ -1,29 +1,13 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <component v-bind:is="currentComponent" @inputData="setCurrentComponent"></component>
+    <router-view/>
   </div>
 </template>
 
 <script>
-import login from './components/login.vue'
+  export default {
 
-export default {
-  name: 'app',
-  components: {
-    login
-  },
-  data() {
-    return {
-      currentComponent: login
-    }
-  },
-  methods: {
-    setCurrentComponent: function(newComponent) {
-      this.currentComponent=newComponent;
-    }
   }
-}
 </script>
 
 <style>

@@ -1,13 +1,25 @@
-import Vue from 'vue/dist/vue.esm.js'
+import Vue from 'vue'
 import App from './App.vue'
-import axios from 'axios'
+const fb = require('./firebaseConfig.js');
+import router from './router'
+import {store} from './store.js'
+import VueRouter from "vue-router";
+
+Vue.use(VueRouter);
 
 Vue.config.productionTip = false;
-Vue.prototype.axios = axios;
-
-
-Vue.prototype.app = new Vue({
-  el: '#app',
-  components: { App },
-  template: '<App/>'
+// handle page reloads
+let app;
+// eslint-disable-next-line no-unused-vars
+fb.auth.onAuthStateChanged(user => {
+  if (!app) {
+    app = new Vue({
+      el: '#app',
+      router,
+      store,
+      components: { App },
+      template: '<App/>',
+      render: h => h(App)
+    });
+  }
 });

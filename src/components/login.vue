@@ -2,12 +2,12 @@
     <div class="login">
         <div class="loginform">
             <h1> Please log in to continue.</h1>
-            <form @submit.prevent="submitform">
+            <h6>{{response}}</h6>
+            <form @submit.prevent>
                 <input class="login" v-model="email" id="email" type="text" placeholder="address@email.com">
                 <input class="login" v-model="password" id="password" type="password" placeholder="********">
-                <button id="loginbutton" type="submit">Sign In</button>
+                <button id="loginbutton" v-on:click="submitform()">Sign In</button>
             </form>
-            <h1>{{response}}</h1>
         </div>
         <div id="createAccount">
             <h3> Don't have an account?</h3>
@@ -19,7 +19,7 @@
 </template>
 
 <script>
-    import register from './register'
+    const fb = require('../firebaseConfig.js');
 
     export default {
         name: "login",
@@ -32,15 +32,31 @@
         },
         methods: {
             submitform() {
+
+                let temp = fb.auth.signInWithEmailAndPassword(this.email, this.password);
+                temp.catch(function(error) {
+                    // Handle Errors here.
+                    // var errorCode = error.code;
+                    // var errorMessage = error.message;
+                    // ...
+                    this.response = error.message;
+                });
+                temp.then(function(user) {
+                    this.$store.commit('setCurrentUser', user.user);
+                    this.$store.dispatch('fetchUserProfile');
+                    this.$router.push('/dashboard');
+                });
+                /*
                 this.axios.post('//jsonplaceholder.typicode.com/posts', {
                     email: this.email,
                     pwd: this.password
                 }).then(response => {
                     this.response = JSON.stringify(response, null, 2)
                 })
+                */
             },
             createacc() {
-                this.$emit("inputData", register);
+                this.$router.push('/signup');
             }
         }
     }
