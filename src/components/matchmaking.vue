@@ -19,6 +19,26 @@
                     <td id="joinpanel" style="width:67%;">
                         <!-- rightmost panel -->
                         <h2>Join a Game</h2>
+                        <table class="jointable">
+                            <thead class="jointable">
+                                <th class="jointable">Game Name</th>
+                                <th class="jointable">Host</th>
+                                <th class="jointable">Full?</th>
+                                <th class="jointable">Join</th>
+                            </thead>
+                            <tbody class="jointable" id="jointablebody">
+                                <tr v-for="entry in jointabledata" v-bind:key="entry['host']">
+                                    <td v-for="key in keys" v-bind:key="key">
+                                        <template v-if="key === 'Join'">
+                                            <button class="joinbutton" v-on:click="join(entry['host'])">Join</button>
+                                        </template>
+                                        <template v-else>
+                                            {{entry[key]}}
+                                        </template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </td>
                 </tr>
             </table>
@@ -35,10 +55,30 @@
         name: "matchmaking",
         data() { return {
             gamename: "",
-            response: ""
+            response: "",
+            jointabledata: [],
+            keys: ["name", "host", "Full?", "Join"]
         }},
         mounted() {
             this.alreadyHosting();
+
+            //let query = fb.roomsCollection;
+            let thisComponent = this;
+
+            fb.roomsCollection
+                .onSnapshot(function(result) {
+                    thisComponent.jointabledata = [];
+                    result.forEach(function(doc) {
+                        let data = doc.data();
+                        let nextElement = {
+                            "name": data.name,
+                            "host": data.host,
+                            "Full?": ((data.other.localeCompare('') === 0) ? 'No' : 'Yes'),
+                            "Join": data.host
+                        };
+                        thisComponent.jointabledata.push(nextElement);
+                    });
+                });
         },
         methods: {
             startHosting() {
@@ -80,6 +120,22 @@
 
                 }, 100);
 
+            },
+            join(host) {
+                let router = this.$router;
+                let thisComponent = this;
+                fb.roomsCollection.doc(host).get().then(function(doc) {
+                    if (doc.data().other.localeCompare("") === 0) {
+                        fb.roomsCollection.doc(host).update({
+                            other: thisComponent.$store.state.userProfile.username
+                        }).then(function() {
+                            router.push('/room/'+host);
+                        });
+                    } else {
+                        alert("This game is full");
+                    }
+                });
+
             }
         },
         components: {
@@ -87,6 +143,16 @@
         }
     }
 </script>
+
+<style>
+    button.joinbutton {
+        padding: 1px;
+        color: white;
+        background: green;
+        min-width: 50px;
+        max-width: 100px;
+    }
+</style>
 
 <style scoped>
     #maindiv {
@@ -115,5 +181,32 @@
     .host {
 
     }
+
+    button.joinbutton {
+        padding: 1px;
+        color: white;
+        background: green;
+    }
+
+
+    table.jointable {
+        width: 100%;
+        border: 1px solid black;
+    }
+
+    thead.jointable {
+        background: white;
+    }
+
+    tbody.jointable {
+        background: white;
+        color: black;
+    }
+
+    th.jointable {
+
+    }
+
+
 
 </style>

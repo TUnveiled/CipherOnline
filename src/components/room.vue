@@ -20,12 +20,15 @@
     export default {
         name: "room",
         mounted() {
+            // retrieve host from URL
             this.hostplayer = this.$router.currentRoute.params.id;
-            this.host = this.hostplayer.localeCompare(this.$store.state.userProfile.username) === 0
+            this.host = this.hostplayer.localeCompare(this.$store.state.userProfile.username) === 0;
 
+            // temp variables because of how the "this" keyword works
             let router = this.$router;
             let roomC = this;
 
+            // Get the information from the database about the room
             fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
                 if (!doc.exists) {
                     alert("room has been closed");
@@ -33,10 +36,17 @@
                 } else {
                     roomC.otherplayer = doc.data().other;
                     roomC.roomName=doc.data().name;
+                    if (roomC.otherplayer !== roomC.$store.state.userProfile.username
+                        && roomC.hostplayer !== roomC.$store.state.userProfile.username)
+                        router.push('/matchmaking');
                     fb.roomsCollection.doc(roomC.hostplayer)
                         .onSnapshot(function(doc) {
-                            if (roomC)
+                            if (roomC) {
                                 roomC.otherplayer = doc.data().other;
+                                if (roomC.otherplayer !== roomC.$store.state.userProfile.username
+                                    && roomC.hostplayer !== roomC.$store.state.userProfile.username)
+                                    router.push('/matchmaking');
+                            }
                         });
                 }
 
@@ -53,13 +63,23 @@
         },
         methods: {
             kick() {
-
+                fb.roomsCollection.doc(this.hostplayer).update({
+                    other: ''
+                });
             },
             deleteRoom() {
-
+                let router = this.$router;
+                fb.roomsCollection.doc(this.hostplayer).delete().then(function() {
+                    router.push("/matchmaking");
+                });
             },
             leaveRoom() {
-
+                let router = this.$router;
+                fb.roomsCollection.doc(this.hostplayer).update({
+                    other: ''
+                }).then(function() {
+                    router.push("/matchmaking");
+                });
             },
             startGame() {
 
