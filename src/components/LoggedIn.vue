@@ -3,7 +3,7 @@
         <userbar></userbar>
         <div id="maindiv">
             <h1>You are logged in.</h1><br>
-            <router-link class="link" to="/dashboard">Play (TODO)</router-link><br>
+            <router-link class="link" to="/matchmaking">Play (TODO)</router-link><br>
             <router-link class="link" to="/dashboard">Account (TODO)</router-link><br>
             <router-link class="link" to="/dashboard">Deckbuilder (TODO)</router-link><br>
         </div>
@@ -39,7 +39,7 @@
         position: relative;
         border: 3px solid black;
         background-color: darkslategrey;
-        width: 50%;
+        width: 90%;
         min-width: 512px;
         margin: 0 auto;
         text-align: center;

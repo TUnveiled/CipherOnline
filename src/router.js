@@ -6,6 +6,7 @@ import firebase from 'firebase'
 import login from './components/login'
 import loggedin from "@/components/LoggedIn"
 import register from './components/register'
+import matchmaking from '@/components/matchmaking'
 
 Vue.use(VueRouter);
 
@@ -33,6 +34,11 @@ const router = new VueRouter({
             path: '/signup',
             name: 'sign up',
             component: register
+        },
+        {
+            path: '/matchmaking',
+            name: 'matchmaking',
+            component: matchmaking
         }
     ]
 });

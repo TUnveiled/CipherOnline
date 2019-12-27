@@ -22,4 +22,8 @@ fb.auth.onAuthStateChanged(user => {
       render: h => h(App)
     });
   }
+  if (user) {
+    store.commit('setCurrentUser', user);
+    store.dispatch('fetchUserProfile');
+  }
 });

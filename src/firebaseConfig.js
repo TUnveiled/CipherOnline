@@ -2,6 +2,7 @@ import firebase from 'firebase';
 import 'firebase/firestore';
 
 // Firebase configuration
+// TODO unversion this file, invalidate this key and get a new one
 var firebaseConfig = {
     apiKey: "AIzaSyDe-rFb_Q9-VPFCoTu3Bs2fPcVaj-nAfQA",
     authDomain: "cipheronline-4343e.firebaseapp.com",

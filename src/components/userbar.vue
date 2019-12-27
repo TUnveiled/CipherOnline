@@ -2,7 +2,10 @@
     <div id="userbar">
         <table style="width:100%; max-height:64px;">
             <tr>
-                <td><h4 style="float: left;"> Logged in as {{username}}</h4></td>
+                <td>
+                    <h4 style="float: left;" v-if="username"> Logged in as {{username}}</h4>
+                    <h4 style="float: left;" v-else v-on:mousemove="updatebar"> Logged in</h4>
+                </td>
                 <td>
                     <button id="logoutbtn" v-on:click="logout">Log Out</button>
                     <button id="dashboard" v-on:click="dashboard">Dashboard</button>
@@ -32,7 +35,10 @@
                 })
             },
             dashboard() {
-                this.$router.push('/login');
+                this.$router.push('/dashboard');
+            },
+            updatebar() {
+                this.username = this.$store.state.userProfile.username;
             }
         }
     }
