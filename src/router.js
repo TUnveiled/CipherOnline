@@ -2,11 +2,14 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 // eslint-disable-next-line no-unused-vars
 import firebase from 'firebase'
+//const fb = require('./firebaseConfig.js');
+//import {store} from './store'
 
 import login from './components/login'
 import loggedin from "@/components/LoggedIn"
 import register from './components/register'
 import matchmaking from '@/components/matchmaking'
+import room from '@/components/room'
 
 Vue.use(VueRouter);
 
@@ -38,7 +41,18 @@ const router = new VueRouter({
         {
             path: '/matchmaking',
             name: 'matchmaking',
-            component: matchmaking
+            component: matchmaking,
+            meta: {
+                requiresAuth: true,
+            }
+        },
+        {
+            path: '/room/:id',
+            name: 'room',
+            component: room,
+            meta: {
+                requiresAuth: true,
+            }
         }
     ]
 });

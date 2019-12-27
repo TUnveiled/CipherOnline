@@ -21,11 +21,13 @@ const currentUser = auth.currentUser;
 
 // firebase collections
 const usersCollection = db.collection('users');
+const roomsCollection = db.collection('rooms');
 
 export {
     auth,
     currentUser,
-    usersCollection
+    usersCollection,
+    roomsCollection
 }
 
 // firebase.analytics();
