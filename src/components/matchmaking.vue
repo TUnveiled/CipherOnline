@@ -26,6 +26,7 @@
                                 <th class="jointable">Full?</th>
                                 <th class="jointable">Join</th>
                             </thead>
+                            <!-- Dynamic Table creation using v-for -->
                             <tbody class="jointable" id="jointablebody">
                                 <tr v-for="entry in jointabledata" v-bind:key="entry['host']">
                                     <td v-for="key in keys" v-bind:key="key">
@@ -60,14 +61,18 @@
             keys: ["name", "host", "Full?", "Join"]
         }},
         mounted() {
+            // check to see if this user already has a room and redirect accordingly
             this.alreadyHosting();
 
             //let query = fb.roomsCollection;
             let thisComponent = this;
 
+            // dynamically update page to reflect changes in database
             fb.roomsCollection
                 .onSnapshot(function(result) {
+                    // empty the table
                     thisComponent.jointabledata = [];
+                    // refill the table with new data
                     result.forEach(function(doc) {
                         let data = doc.data();
                         let nextElement = {
@@ -87,13 +92,16 @@
                 if (!roomName)
                     roomName = this.$store.state.userProfile.username + '\'s Game';
 
-                // add the room to the database
+                // add the new room to the database
                 fb.roomsCollection.doc(this.$store.state.userProfile.username).set({
                     host: this.$store.state.userProfile.username,
                     other: "",
                     name: roomName,
-                    inprogress: false
+                    inprogress: false,
+                    hostReady: false,
+                    otherReady: false
                 }).then(() => {
+                    // route to the new room
                     this.$router.push('/room/'+this.$store.state.userProfile.username);
                 }).catch(err => {
                     this.response = err;
@@ -106,6 +114,9 @@
                 let store = this.$store;
                 let router = this.$router;
                 let temp = this.alreadyHosting;
+
+                // Redirect the user if they have a room already
+                // Use recursion and timeouts to account for delays in fetching the user profile after a refresh
                 setTimeout(function() {
                     if (store) {
                         if (username) {
@@ -124,11 +135,16 @@
             join(host) {
                 let router = this.$router;
                 let thisComponent = this;
+
+                // check to see if the room is available
                 fb.roomsCollection.doc(host).get().then(function(doc) {
+                    // if the room doesn't have a 2 users
                     if (doc.data().other.localeCompare("") === 0) {
+                        // add this user to the room in the database
                         fb.roomsCollection.doc(host).update({
                             other: thisComponent.$store.state.userProfile.username
                         }).then(function() {
+                            // redirect this user to the room page
                             router.push('/room/'+host);
                         });
                     } else {
@@ -206,7 +222,4 @@
     th.jointable {
 
     }
-
-
-
 </style>
