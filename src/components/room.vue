@@ -113,9 +113,14 @@
                 });
             },
             startGame() {
-                // TODO redirect players to game upon
                 fb.roomsCollection.doc(this.hostplayer).update({
-                    inprogress: true
+                    inprogress: true,
+                    currentTurn: -1,
+                    hostrps: null,
+                    otherrps: null,
+                    hostFirst: null,
+                    hostMC: null,
+                    otherMC: null
                 });
             },
             toggleReady() {
