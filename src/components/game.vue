@@ -134,7 +134,7 @@
                     frontLine: [],
                     backLine: [],
                     support: null,
-                    deck: [],
+                    deck: 0,
                     retreat: [],
                     boundless: [],
                     orbs: 0,
@@ -207,44 +207,26 @@
 
                         fb.roomsCollection.doc(this.hostplayer).update(updateData);
                     }
-                    else if (this.thisPlayer.deck.length === 0)
-                    {
-                        // Load this player's deck
-                        // temp element so this doesn't trigger again
-                        this.thisPlayer.deck = [null];
-                        let thisComponent = this;
-                        fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
-                            let cards = doc.data();
-
-                            Object.keys(cards).forEach(function (nextCard) {
-                                if (nextCard.localeCompare('Preferred_MCs') === 0)
-                                    return;
-                                let num = cards[nextCard];
-                                for (let i = 0; i < num; i++)
-                                    thisComponent.thisPlayer.deck.push(nextCard);
-                            });
-                            thisComponent.thisPlayer.deck.splice(0,1);
-
-                        });
-
-                    }
+                    else
                     if (((this.host && data['hostMC'] == null) || (!this.host && data['otherMC'] == null))
-                        && this.thisPlayer.deck.length > 0) {
+                        && !this.cardselect.active) {
                         // display pick MC box
-                        if (this.cardselect.active)
-                            return;
                         this.cardselect.active = true;
                         this.cardselect.max = 1;
                         this.cardselect.min = 1;
                         this.cardselect.message = 'Select your MC';
+
+                        // function to set MC
                         this.cardselect.confirm = function(selectedCards) {
                             // TODO set MC
                             alert(selectedCards);
+
                         };
                         let thisComponent = this;
                         // get deck from database
                         fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
                             let cards = doc.data();
+                            thisComponent.deck = cards.length - 1;
 
                             // get card data from database
                             Object.keys(cards).forEach(function (nextCard) {
@@ -294,6 +276,7 @@
                     thisComponent.update(roomData);
                 });
 
+                // Initialize info panel
                 fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
                     let cards = doc.data();
 
