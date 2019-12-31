@@ -70,7 +70,14 @@
                 </tr>
                 <tr>
                     <td>Deck</td>
-                    <td>Front Line</td>
+                    <td>
+                    <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
+                        <td v-for="unit in oppPlayer.frontLine" :key="unit.card.name">
+                            <unit :oref="unit" @hover="setInfoCard"></unit>
+                        </td>
+                    </tr></tbody></table>
+                    <a v-else>Front Line</a>
+                    </td>
                     <td>Orbs</td>
                 </tr>
                 <tr>
@@ -183,6 +190,14 @@
                     this.otherplayer = data['other'];
                     if (data.players[this.thisPlayer.username].frontLine)
                         this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
+                    else
+                        this.thisPlayer.frontLine = [];
+
+                    // TODO change so you can't see opponent's MC during setup after testing
+                    if (data.players[this.oppPlayer.username].frontLine)
+                        this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                    else
+                        this.oppPlayer.frontLine = [];
 
                     if (data.players[this.thisPlayer.username].rps == null) {
                         // display Rock Paper Scissors
@@ -259,6 +274,30 @@
 
                             fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
 
+                            // set up deck:
+                            fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
+                                let cards = doc.data();
+                                let deck = [];
+                                delete cards['Preferred_MCs'];
+
+                                cards[MC.card.id]--;
+                                Object.keys(cards).forEach(function (nextCard) {
+                                    for (let i=0; i < cards[nextCard]; i++)
+                                        deck.push(nextCard);
+                                });
+                                thisComponent.shuffle(deck);
+
+                                let hand = [];
+                                for (let i = 0; i < 6; i++)
+                                    hand.push(thisComponent._draw(deck));
+
+                                let updateData = {};
+                                updateData[prefix + 'deck'] = deck;
+                                updateData[prefix + 'hand'] = hand;
+
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                            });
+
                         };
 
                         // get deck from database
@@ -291,6 +330,8 @@
 
                         });
                     }
+                } else {
+                    // game has begun
                 }
 
             },
@@ -308,6 +349,17 @@
                 this.thisPlayer.username = this.$store.state.userProfile.username;
                 if (this.hostplayer.localeCompare(this.thisPlayer.username) === 0)
                     this.host = true;
+
+                fb.roomsCollection.doc(this.hostplayer).get().then(function(room) {
+                    let roomData = room.data();
+                    thisComponent.otherplayer = roomData['other'];
+
+                    if (thisComponent.host)
+                        thisComponent.oppPlayer.username = roomData['other'];
+                    else
+                        thisComponent.oppPlayer.username = roomData['host'];
+
+                });
 
                 fb.roomsCollection.doc(this.hostplayer).onSnapshot(function(room) {
                     let roomData = room.data();
@@ -373,6 +425,29 @@
             },
             setInfoCard(infoCard) {
                 this.infoCard = infoCard;
+            },
+            shuffle(array) {
+                var currentIndex = array.length, temporaryValue, randomIndex;
+
+                // While there remain elements to shuffle...
+                while (0 !== currentIndex) {
+
+                    // Pick a remaining element...
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex -= 1;
+
+                    // And swap it with the current element.
+                    temporaryValue = array[currentIndex];
+                    array[currentIndex] = array[randomIndex];
+                    array[randomIndex] = temporaryValue;
+                }
+
+                return array;
+            },
+            _draw(array) {
+                let toReturn = array[0];
+                array.shift();
+                return toReturn;
             }
         }
     }
