@@ -113,14 +113,19 @@
                 });
             },
             startGame() {
+                let players = {};
+                players[this.hostplayer] = {
+                    rps: null,
+                    MC: null
+                };
+                players[this.otherplayer] = {
+                    rps: null,
+                    MC: null
+                };
                 fb.roomsCollection.doc(this.hostplayer).update({
                     inprogress: true,
                     currentTurn: -1,
-                    hostrps: null,
-                    otherrps: null,
-                    hostFirst: null,
-                    hostMC: null,
-                    otherMC: null
+                    players: players
                 });
             },
             toggleReady() {

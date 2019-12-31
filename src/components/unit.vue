@@ -1,24 +1,30 @@
     <template>
-        <div class="unit">
-            <div class="title">{{title}}</div>
-            <img class="image" :src="imageref" alt="card back">
-            <div class="count">{{count}}</div>
+        <div class="unit" v-on:mouseenter="onHover">
+            <div class="title" v-if="oref.MC">MC</div>
+            <img class="image" :src="oref.card.imageref" alt="card" :style="
+                (oref.tapped) ? 'transform: rotate(90deg);' : ''
+                 ">
+            <div class="stack" v-if="oref.stack > 0">{{oref.stack}}</div>
+            <div class="attack">{{oref.card.attack}}</div>
         </div>
     </template>
 
     <script>
         export default {
             name: "unit",
+            mounted() {
+
+            },
             data() {
-                return {
-                    imageref: "https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png"
-                }
+                return this.oref;
             },
             props: {
-
+                oref: Object
             },
             methods: {
-
+                onHover() {
+                    this.$emit('hover', this.oref.card);
+                }
             }
         }
     </script>
@@ -47,15 +53,27 @@
             text-align: center;
         }
 
-        .count {
+        .attack {
             z-index: 1;
             text-shadow: 1px 1px black;
             font-size: 30px;
             color: white;
             position: absolute;
-            top: 70%;
-            right: 0;
+            top: 60%;
+            right: 40%;
             left: 0;
+            bottom: 0;
+        }
+
+        .stack {
+            z-index: 1;
+            text-shadow: 1px 1px black;
+            font-size: 10px;
+            color: white;
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 70%;
             bottom: 0;
         }
     </style>

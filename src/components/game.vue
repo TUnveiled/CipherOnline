@@ -66,7 +66,7 @@
                     <td>Retreat</td>
                     <td>Back Line</td>
                     <td>Boundless</td>
-                    <td rowspan="2">Support</td>
+                    <td rowspan="2">Bonds</td>
                 </tr>
                 <tr>
                     <td>Deck</td>
@@ -80,9 +80,16 @@
                 </tr>
                 <tr>
                     <td><facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack></td>
-                    <td style="width:75%">Front Line</td>
-                    <td><facedownstack title="Deck" :count="thisPlayer.deck.length"></facedownstack></td>
-                    <td rowspan="2" style="width:25%;">Support</td>
+                    <td style="width:75%">
+                        <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
+                            <td v-for="unit in thisPlayer.frontLine" :key="unit.card.name">
+                                <unit :oref="unit" @hover="setInfoCard"></unit>
+                            </td>
+                        </tr></tbody></table>
+                        <a v-else>Front Line</a>
+                    </td>
+                    <td><facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack></td>
+                    <td rowspan="2" style="width:25%;">Bonds</td>
                 </tr>
                 <tr>
                     <td>
@@ -110,15 +117,17 @@
 <script>
     import Facedownstack from "@/components/facedownstack";
     import Cardstack from "@/components/cardstack";
+    import Unit from "@/components/unit"
     const fb = require('../firebaseConfig');
 
     export default {
         name: "game.vue",
-        components: {Cardstack, Facedownstack},
+        components: {Cardstack, Facedownstack, Unit},
         data() {
             return {
                 infoCard: {},
                 hostplayer: '',
+                otherplayer: '',
                 host: false,
                 rps: false,
                 cardselect: {
@@ -131,6 +140,7 @@
                     confirm: null
                 },
                 thisPlayer: {
+                    username: '',
                     frontLine: [],
                     backLine: [],
                     support: null,
@@ -144,7 +154,17 @@
                 },
                 seenCards: { },
                 oppPlayer: {
-
+                    username: '',
+                    frontLine: [],
+                    backLine: [],
+                    support: null,
+                    deck: 0,
+                    retreat: [],
+                    boundless: [],
+                    orbs: 0,
+                    knownOrbs: [],
+                    bonds: [],
+                    hand: []
                 }
             }
         },
@@ -153,76 +173,94 @@
         },
         methods: {
             rpsPick(option) {
-                if (this.host) {
-                    fb.roomsCollection.doc(this.hostplayer).update( {
-                        hostrps: option
-                    });
-                } else {
-                    fb.roomsCollection.doc(this.hostplayer).update( {
-                        otherrps: option
-                    })
-                }
+                let updateData = {};
+                updateData["players." + this.thisPlayer.username + ".rps"] = option;
+                fb.roomsCollection.doc(this.hostplayer).update(updateData);
                 this.rps = false;
             },
             update(data) {
                 if (data['currentTurn'] < 0) { // setup
-                    if ((data['otherrps'] == null && !this.host) ||
-                        (data['hostrps'] == null && this.host)) {
+                    this.otherplayer = data['other'];
+                    if (data.players[this.thisPlayer.username].frontLine)
+                        this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
+
+                    if (data.players[this.thisPlayer.username].rps == null) {
                         // display Rock Paper Scissors
                         this.rps = true;
                     }
-                    else if (data['hostFirst'] == null && this.host && data['otherrps'] != null) {
+                    else if (data['hostFirst'] == null && this.host && data.players[this.otherplayer].rps != null) {
                         // determine the winner of Rock Paper Scissors
                         let hostWin = null;
-                        switch (data['hostrps']) {
+                        switch (data.players[this.hostplayer].rps) {
                             case 'r':
-                                if (data['otherrps'] === 'p')
+                                if (data.players[this.otherplayer].rps === 'p')
                                     hostWin = false;
-                                else if (data['otherrps'] === 's')
+                                else if (data.players[this.otherplayer].rps === 's')
                                     hostWin = true;
                                 break;
                             case 'p':
-                                if (data['otherrps'] === 'r')
+                                if (data.players[this.otherplayer].rps === 'r')
                                     hostWin = true;
-                                else if (data['otherrps'] === 's')
+                                else if (data.players[this.otherplayer].rps === 's')
                                     hostWin = false;
                                 break;
                             case 's':
-                                if (data['otherrps'] === 'p')
+                                if (data.players[this.otherplayer].rps === 'p')
                                     hostWin = true;
-                                else if (data['otherrps'] === 'r')
+                                else if (data.players[this.otherplayer].rps === 'r')
                                     hostWin = false;
                                 break;
                         }
                         let updateData;
 
                         // tie
-                        if (hostWin === null)
-                            updateData = {
-                                otherrps: null,
-                                hostrps: null
-                            };
+                        if (hostWin === null) {
+                            updateData = {};
+                            updateData['players.' + this.hostplayer + '.rps'] = null;
+                            updateData['players.' + this.otherplayer + '.rps'] = null;
+                        }
                         else // someone won
                             updateData = {hostFirst: hostWin};
 
                         fb.roomsCollection.doc(this.hostplayer).update(updateData);
                     }
                     else
-                    if (((this.host && data['hostMC'] == null) || (!this.host && data['otherMC'] == null))
+                    if (data.players[this.$store.state.userProfile.username].MC === null
                         && !this.cardselect.active) {
                         // display pick MC box
                         this.cardselect.active = true;
                         this.cardselect.max = 1;
                         this.cardselect.min = 1;
                         this.cardselect.message = 'Select your MC';
-
+                        let thisComponent = this;
                         // function to set MC
                         this.cardselect.confirm = function(selectedCards) {
-                            // TODO set MC
-                            alert(selectedCards);
+                            let MC = {
+                                card: selectedCards[0],
+                                MC: true,
+                                stack: 1,
+                                tapped: false
+                            };
+                            // let deck = {};
+
+                            let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                            let updateData;
+                            updateData = {};
+                            updateData[prefix + 'MC'] = MC.card.name;
+                            updateData[prefix + 'frontLine'] = [MC];
+                            updateData[prefix + 'backLine'] = [];
+                            updateData[prefix + 'support'] = null;
+                            updateData[prefix + 'deck'] = []; // TODO actually set up deck
+                            updateData[prefix + 'retreat'] = [];
+                            updateData[prefix + 'boundless'] = [];
+                            updateData[prefix + 'orbs'] = [];
+                            updateData[prefix + 'bonds'] = [];
+                            updateData[prefix + 'hand'] = [];
+
+                            fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
 
                         };
-                        let thisComponent = this;
+
                         // get deck from database
                         fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
                             let cards = doc.data();
@@ -252,7 +290,7 @@
                             });
 
                         });
-                    } else alert("running");
+                    }
                 }
 
             },
@@ -267,8 +305,8 @@
                 }
                 let thisComponent = this;
                 this.hostplayer = this.$router.currentRoute.params.id;
-
-                if (this.hostplayer.localeCompare(this.$store.state.userProfile.username) === 0)
+                this.thisPlayer.username = this.$store.state.userProfile.username;
+                if (this.hostplayer.localeCompare(this.thisPlayer.username) === 0)
                     this.host = true;
 
                 fb.roomsCollection.doc(this.hostplayer).onSnapshot(function(room) {
@@ -276,7 +314,7 @@
                     thisComponent.update(roomData);
                 });
 
-                // Initialize info panel
+                // Initialize info panel (probably better to do a dummy initialization here instead)
                 fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
                     let cards = doc.data();
 
@@ -312,6 +350,29 @@
                     numSelected: 0,
                     confirm: null
                 }
+            },
+            deployUnit(card, source, dest, MC) {
+                let newUnit = {
+                    card: this.seenCards[card],
+                    MC: MC,
+                    stack: 1,
+                    tapped: false
+                };
+                let boardref = this.thisPlayer;
+                switch (source) {
+                    case boardref.deck:
+                        boardref.deck--;
+                        // TODO update deck in database
+                        break;
+                    case boardref.hand:
+                        // TODO update hand in database
+                        break;
+                }
+                dest.push(JSON.parse(JSON.stringify(newUnit)));
+                return newUnit;
+            },
+            setInfoCard(infoCard) {
+                this.infoCard = infoCard;
             }
         }
     }
