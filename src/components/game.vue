@@ -33,6 +33,11 @@
             <button :disabled="(cardselect.numSelected > cardselect.max || cardselect.numSelected < cardselect.min)"
                    v-on:click="confirmSelection">Select</button>
         </div>
+        <div class="window" id="binaryoption" :style="binaryoption.active ? 'display:block' : 'display:none'">
+            <h2 style="color:black">{{binaryoption.prompt}}</h2>
+            <button v-on:click="binaryYes">yes</button>
+            <button v-on:click="binaryNo">no</button>
+        </div>
         <div class="infopanel">
             <img style="width:100%" :src="infoCard['imageref']" :alt="infoCard['name']+': '+infoCard['title']">
             <table>
@@ -57,28 +62,47 @@
             </table>
         </div>
         <div class="opp">
-            OPPONENT
+            <table>
+                <tbody>
+                <tr v-if="thisPlayer.hand.length > 0">
+                    <td style="width:50%;"></td>
+                    <td v-for="index in oppPlayer.hand" :key="index">
+                        <img height="80px" src="https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png" alt="card">
+                    </td>
+                    <td style="width:50%;"></td>
+                </tr>
+                <tr v-else>HAND</tr>
+                </tbody>
+            </table>
         </div>
         <div class="gameboard">
             <table class="playarea">
                 <tbody>
                 <tr>
-                    <td>Retreat</td>
+                    <td>
+                        <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length" :imageref="oppPlayer.retreat[0]['imageref']"></cardstack>
+                        <cardstack v-else title="Retreat" :count="0"></cardstack>
+                    </td>
                     <td>Back Line</td>
-                    <td>Boundless</td>
+                    <td>
+                        <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.length" :imageref="oppPlayer.boundless[0]['imageref']"></cardstack>
+                        <cardstack v-else title="Retreat" :count="0"></cardstack>
+                    </td>
                     <td rowspan="2">Bonds</td>
                 </tr>
                 <tr>
-                    <td>Deck</td>
+                    <td><facedownstack title="Deck" :count="oppPlayer.deck"></facedownstack></td>
                     <td>
                     <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
+                        <td style="width: 50%;"></td>
                         <td v-for="unit in oppPlayer.frontLine" :key="unit.card.name">
                             <unit :oref="unit" @hover="setInfoCard"></unit>
                         </td>
+                        <td style="width: 50%;"></td>
                     </tr></tbody></table>
                     <a v-else>Front Line</a>
                     </td>
-                    <td>Orbs</td>
+                    <td><facedownstack title="Orbs" :count="oppPlayer.orbs"></facedownstack></td>
                 </tr>
                 <tr>
                     <td>Support</td>
@@ -89,9 +113,11 @@
                     <td><facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack></td>
                     <td style="width:75%">
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
+                            <td style="width:50%;"></td>
                             <td v-for="unit in thisPlayer.frontLine" :key="unit.card.name">
                                 <unit :oref="unit" @hover="setInfoCard"></unit>
                             </td>
+                            <td style="width:50%;"></td>
                         </tr></tbody></table>
                         <a v-else>Front Line</a>
                     </td>
@@ -116,7 +142,22 @@
             </table>
         </div>
         <div class="hand">
-            HAND
+            <table>
+                <tbody>
+                <tr v-if="thisPlayer.hand.length > 0">
+                    <td style="width:50%;"></td>
+                    <td v-for="(card, index) in thisPlayer.hand" :key="index">
+                        <div v-if="!seenCards[card]">
+                            <a v-if="fetchCardData(card)"></a>
+                        </div>
+                        <img v-else height="80px" :src="seenCards[card].imageref" :alt="card"
+                             v-on:mouseenter="infoCard=seenCards[card]">
+                    </td>
+                    <td style="width:50%;"></td>
+                </tr>
+                <tr v-else>HAND</tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </template>
@@ -145,6 +186,12 @@
                     message: '',
                     numSelected: 0,
                     confirm: null
+                },
+                binaryoption: {
+                    active: false,
+                    prompt: '',
+                    yes: null,
+                    no: null
                 },
                 thisPlayer: {
                     username: '',
@@ -193,11 +240,33 @@
                     else
                         this.thisPlayer.frontLine = [];
 
-                    // TODO change so you can't see opponent's MC during setup after testing
-                    if (data.players[this.oppPlayer.username].frontLine)
-                        this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                    if (data.players[this.thisPlayer.username].hand)
+                        this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
                     else
-                        this.oppPlayer.frontLine = [];
+                        this.thisPlayer.hand = [];
+
+                    if (data.players[this.thisPlayer.username].deck)
+                        this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
+                    else
+                        this.thisPlayer.deck = 0;
+
+                    if (data.players[this.oppPlayer.username].deck)
+                        this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
+                    else
+                        this.oppPlayer.deck = 0;
+
+                    if (data.players[this.oppPlayer.username].hand)
+                        this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+                    else
+                        this.oppPlayer.hand = 0;
+
+                    // TODO change so you can't see opponent's MC during setup after testing
+                    if (this.oppPlayer.username) {
+                        if (data.players[this.oppPlayer.username].frontLine)
+                            this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                        else
+                            this.oppPlayer.frontLine = [];
+                    }
 
                     if (data.players[this.thisPlayer.username].rps == null) {
                         // display Rock Paper Scissors
@@ -265,7 +334,7 @@
                             updateData[prefix + 'frontLine'] = [MC];
                             updateData[prefix + 'backLine'] = [];
                             updateData[prefix + 'support'] = null;
-                            updateData[prefix + 'deck'] = []; // TODO actually set up deck
+                            updateData[prefix + 'deck'] = [];
                             updateData[prefix + 'retreat'] = [];
                             updateData[prefix + 'boundless'] = [];
                             updateData[prefix + 'orbs'] = [];
@@ -294,8 +363,45 @@
                                 let updateData = {};
                                 updateData[prefix + 'deck'] = deck;
                                 updateData[prefix + 'hand'] = hand;
+                                updateData[prefix + 'mulligan'] = false;
 
                                 fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+
+                                // mulligan
+                                thisComponent.binaryoption.prompt = "would you like to mulligan?";
+                                thisComponent.binaryoption.yes = function() {
+                                    fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
+                                        let data = doc.data();
+                                        let deck = data.players[thisComponent.thisPlayer.username].deck;
+
+                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                        deck = deck.concat(hand);
+
+                                        hand = [];
+                                        thisComponent.shuffle(deck);
+                                        for (let i = 0; i < 6; i++)
+                                            hand.push(thisComponent._draw(deck));
+
+                                        let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                        let updateData;
+                                        updateData = {};
+
+                                        updateData[prefix + 'deck'] = deck;
+                                        updateData[prefix + 'hand'] = hand;
+                                        updateData[prefix + 'mulligan'] = true;
+
+                                        // TODO check mulligan property for security
+                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                    });
+                                };
+                                thisComponent.binaryoption.no = (function() {
+                                    let updateData = {};
+                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                    updateData[prefix + 'mulligan'] = true;
+
+                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                });
+                                thisComponent.binaryoption.active = true;
                             });
 
                         };
@@ -312,9 +418,9 @@
                                     fb.cardsCollection.doc(nextCard).get().then(function (cardDoc) {
                                         let cardID = cardDoc.id;
                                         let cardData = cardDoc.data();
+                                        cardData['id'] = cardID;
                                         thisComponent.seenCards[cardID] = cardData;
                                         cardData['valid'] = cardData['cost'] === 1;
-                                        cardData['id'] = cardID;
                                         cardData['selected'] = false;
                                         // TODO implement preferred MCs
                                         for (let i = 0; i < num; i++) {
@@ -405,7 +511,7 @@
             },
             deployUnit(card, source, dest, MC) {
                 let newUnit = {
-                    card: this.seenCards[card],
+                    card: this.fetchCardData(card),
                     MC: MC,
                     stack: 1,
                     tapped: false
@@ -448,6 +554,27 @@
                 let toReturn = array[0];
                 array.shift();
                 return toReturn;
+            },
+            async fetchCardData(id) {
+                if (!this.seenCards[id]) {
+                    let promise = new Promise((resolve) => {
+                        fb.cardsCollection.doc(id).get().then(function(doc) {
+                            let data = doc.data();
+                            data['id'] = doc.id;
+                            resolve(data);
+                        })
+                    });
+                    this.seenCards[id] = await promise;
+                }
+                return this.seenCards[id];
+            },
+            binaryYes() {
+                this.binaryoption.active = false;
+                this.binaryoption.yes();
+            },
+            binaryNo() {
+                this.binaryoption.active = false;
+                this.binaryoption.no();
             }
         }
     }
@@ -468,11 +595,13 @@
 
     .hand {
         grid-area: hand;
-        min-height: 100px;
+        min-height:80px;
+        overflow-x: scroll;
     }
     .opp {
         grid-area: oppo;
-        min-height: 100px;
+        min-height: 80px;
+        overflow-x: scroll;
     }
     .gameboard {
         grid-area: game;
@@ -519,7 +648,7 @@
     }
 
     .playarea >>> tr {
-        height: 100px;
+        height: 80px;
     }
 
     #cardselect {

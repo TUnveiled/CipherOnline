@@ -41,7 +41,7 @@
     }
 
     .image {
-        height: 100px;
+        height: 80px;
         z-index: 0;
         position: relative;
         text-align: center;
