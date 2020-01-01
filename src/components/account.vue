@@ -1,24 +1,17 @@
 <template>
-    <div style="padding:1px">
+    <div>
         <userbar></userbar>
-        <div id="maindiv">
-            <h1>You are logged in.</h1><br>
-            <router-link class="link" to="/matchmaking">Play (TODO)</router-link><br>
-            <router-link class="link" to="/account">Account (TODO)</router-link><br>
-            <router-link class="link" to="/dashboard">Deckbuilder (TODO)</router-link><br>
+        <div id = "maindiv">
+            <h1>User Profile.</h1>
         </div>
     </div>
+    
 </template>
 
 <script>
-
-    import Userbar from "@/components/userbar";
-    // eslint-disable-next-line no-unused-vars
-    const fb = require('../firebaseConfig.js');
-
-
+    import Userbar from "./userbar";
     export default {
-        name: "loggedin",
+        name: "account",
         components: {Userbar},
         data() {
             return {
