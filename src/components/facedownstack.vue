@@ -51,7 +51,7 @@
         font-size: 30px;
         color: white;
         position: absolute;
-        top: 70%;
+        top: 60%;
         right: 0;
         left: 0;
         bottom: 0;

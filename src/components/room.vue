@@ -125,7 +125,8 @@
                 fb.roomsCollection.doc(this.hostplayer).update({
                     inprogress: true,
                     currentTurn: -1,
-                    players: players
+                    players: players,
+                    currentPhase: -1
                 });
             },
             toggleReady() {

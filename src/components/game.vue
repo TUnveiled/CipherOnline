@@ -106,7 +106,28 @@
                 </tr>
                 <tr>
                     <td>Support</td>
-                    <td>Phases</td>
+                    <td>
+                        Phases<br>
+                        <button class="phasebutton" disabled :style="(phase === 0) ? 'background: lightgreen;' : ''">
+                            Beginning
+                        </button>
+                        <button class="phasebutton" disabled :style="(phase === 1) ? 'background: lightgreen;' : ''">
+                            Bond
+                        </button>
+                        <button class="phasebutton" :disabled="!turn || phase !== 1"
+                                :style="(phase === 2) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                            Deploy
+                        </button>
+                        <button class="phasebutton" :disabled="!turn || phase !== 2"
+                                :style="(phase === 3) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                            Action
+                        </button>
+                        <button class="phasebutton" :disabled="!turn || phase !== 3"
+                                :style="(phase === 4) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                            End
+                        </button>
+
+                    </td>
                     <td>Support</td>
                 </tr>
                 <tr>
@@ -178,6 +199,12 @@
                 otherplayer: '',
                 host: false,
                 rps: false,
+                turn: false,
+                phase: -1,
+                communicating: false,
+                handstate: {
+
+                },
                 cardselect: {
                     active: false,
                     options: [],
@@ -260,6 +287,11 @@
                     else
                         this.oppPlayer.hand = 0;
 
+                    if (data.players[this.thisPlayer.username].orbs)
+                        this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
+                    if (data.players[this.oppPlayer.username].orbs)
+                        this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
+
                     // TODO change so you can't see opponent's MC during setup after testing
                     if (this.oppPlayer.username) {
                         if (data.players[this.oppPlayer.username].frontLine)
@@ -310,7 +342,7 @@
                     }
                     else
                     if (data.players[this.$store.state.userProfile.username].MC === null
-                        && !this.cardselect.active) {
+                        && !this.cardselect.active && data.hostFirst != null) {
                         // display pick MC box
                         this.cardselect.active = true;
                         this.cardselect.max = 1;
@@ -392,6 +424,7 @@
 
                                         // TODO check mulligan property for security
                                         fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                        thisComponent.addOrbs(5, false, false);
                                     });
                                 };
                                 thisComponent.binaryoption.no = (function() {
@@ -400,6 +433,8 @@
                                     updateData[prefix + 'mulligan'] = true;
 
                                     fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+
+                                    thisComponent.addOrbs(5, false, false);
                                 });
                                 thisComponent.binaryoption.active = true;
                             });
@@ -435,9 +470,82 @@
                             });
 
                         });
+                    } else if (this.host && data.players[this.otherplayer].orbs.length > 0
+                                && data.players[this.hostplayer].orbs.length > 0) {
+                        // ready to start the game
+                        this.startGame();
                     }
                 } else {
                     // game has begun
+
+                    // update this player's gameboard
+                    this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
+                    this.thisPlayer.backLine = data.players[this.thisPlayer.username].backLine;
+                    this.thisPlayer.support = data.players[this.thisPlayer.username].support;
+                    this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
+                    this.thisPlayer.retreat = data.players[this.thisPlayer.username].retreat;
+                    this.thisPlayer.boundless = data.players[this.thisPlayer.username].boundless;
+                    this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
+                    this.thisPlayer.bonds = data.players[this.thisPlayer.username].bonds;
+                    this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
+
+                    // update known orbs
+                    this.thisPlayer.knownOrbs = [];
+                    for (let i = 0; i < this.thisPlayer.orbs; i++) {
+                        let currentOrb = data.players[this.thisPlayer.username].orbs[i];
+                        if (currentOrb['known'])
+                            this.thisPlayer.knownOrbs.push(currentOrb);
+                    }
+
+                    // update the opposing player's gameboard
+                    this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                    this.oppPlayer.backLine = data.players[this.oppPlayer.username].backLine;
+                    this.oppPlayer.support = data.players[this.oppPlayer.username].support;
+                    this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
+                    this.oppPlayer.retreat = data.players[this.oppPlayer.username].retreat;
+                    this.oppPlayer.boundless = data.players[this.oppPlayer.username].boundless;
+                    this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
+                    this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
+                    this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+
+                    // update known orbs
+                    this.oppPlayer.knownOrbs = [];
+                    for (let i = 0; i < this.oppPlayer.orbs; i++) {
+                        let currentOrb = data.players[this.oppPlayer.username].orbs[i];
+                        if (currentOrb['faceUp'])
+                            this.oppPlayer.knownOrbs.push(currentOrb);
+                    }
+
+                    // grab non-player-specific info
+                    this.phase = data.currentPhase;
+
+                    // determine whose turn it is based on turn number and who went first
+                    let a = (data.hostFirst) ? 1 : 0;
+                    let b = (this.host) ? 1 : 0;
+                    let c = data.currentTurn % 2;
+                    this.turn = !!((a ^ b) ^ c);
+
+                    if (this.turn) {
+                        switch (data.currentPhase) {
+                            case 0:
+                                // beginning phase
+                                this.beginningPhase(data);
+                                break;
+                            case 1:
+                                // bond phase
+                                this.bondPhase(data);
+                                break;
+                            case 2:
+                                // deploy phase
+                                break;
+                            case 3:
+                                // action phase
+                                break;
+                            case 4:
+                                // end phase
+                                break;
+                        }
+                    }
                 }
 
             },
@@ -555,6 +663,19 @@
                 array.shift();
                 return toReturn;
             },
+            draw(num, data, updateData) {
+                let deck = data.players[this.thisPlayer.username].deck;
+
+                let hand = data.players[this.thisPlayer.username].hand;
+
+                for (let i = 0; i < num; i++)
+                    hand.push(this._draw(deck));
+
+                let prefix = 'players.' + this.thisPlayer.username + '.';
+
+                updateData[prefix + 'deck'] = deck;
+                updateData[prefix + 'hand'] = hand;
+            },
             async fetchCardData(id) {
                 if (!this.seenCards[id]) {
                     let promise = new Promise((resolve) => {
@@ -575,6 +696,86 @@
             binaryNo() {
                 this.binaryoption.active = false;
                 this.binaryoption.no();
+            },
+            addOrbs(num, known, faceUp) {
+                let thisComponent = this;
+                fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
+                    let data = doc.data();
+                    let deck = data.players[thisComponent.thisPlayer.username].deck;
+
+                    let orbs = data.players[thisComponent.thisPlayer.username].orbs;
+
+                    thisComponent.shuffle(deck);
+                    for (let i = 0; i < num; i++) {
+                        let newOrb = {'cardID' : thisComponent._draw(deck)};
+                        newOrb['known'] = known;
+                        if (!faceUp)
+                        newOrb['faceUp'] = faceUp;
+                        orbs.push(newOrb);
+                    }
+
+                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                    let updateData;
+                    updateData = {};
+
+                    updateData[prefix + 'deck'] = deck;
+                    updateData[prefix + 'orbs'] = orbs;
+
+                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                });
+            },
+            startGame() {
+                let updateData = {
+                    currentTurn: 1,
+                    currentPhase: 0
+                };
+                fb.roomsCollection.doc(this.hostplayer).update(updateData);
+            },
+            nextPhase() {
+                // TODO : disable phase buttons and increment phase in database
+            },
+            beginningPhase(data) {
+                if (this.communicating)
+                    return;
+                // TODO skip draw if turn = 1
+                this.communicating = true;
+                let updateData = {};
+                this.draw(1, data, updateData);
+
+                let frontLine = data.players[this.thisPlayer.username].frontLine;
+                let backLine = data.players[this.thisPlayer.username].backLine;
+
+                frontLine.forEach(function(unit) {
+                    unit.tapped = false;
+                });
+                backLine.forEach(function(unit) {
+                    unit.tapped = false;
+                });
+                updateData['currentPhase'] = 1;
+
+                updateData['players.' + this.thisPlayer.username + '.frontLine'] = frontLine;
+                updateData['players.' + this.thisPlayer.username + '.backLine']  = backLine;
+
+                let thisComponent = this;
+                fb.roomsCollection.doc(this.hostplayer).update(updateData).then(function() {
+                    setTimeout(function() {
+                        thisComponent.communicating = false;
+                    }, 1000)
+                })
+            },
+            bondPhase(data) {
+                if (this.communicating)
+                    return;
+                this.communicating = true;
+                this.binaryoption.prompt = 'Would you like to bond a card?';
+                this.binaryoption.yes = function() {
+                    // TODO set handstate
+                    alert(data);
+                };
+                this.binaryoption.no = function() {
+
+                };
+                this.binaryoption.active = true;
             }
         }
     }
@@ -645,6 +846,12 @@
         padding: 2px;
         font-size: 16px;
         color: black;
+    }
+
+    .phasebutton {
+        width: 20%;
+        min-width: 70px;
+        padding: 2px;
     }
 
     .playarea >>> tr {
