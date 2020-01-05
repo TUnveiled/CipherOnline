@@ -38,6 +38,12 @@
             <button v-on:click="binaryYes">yes</button>
             <button v-on:click="binaryNo">no</button>
         </div>
+        <div class="window" id="optionmenu" :style="optionmenu.active ? 'display:block' : 'display:none'">
+            <h5 style="color:black">{{optionmenu.prompt}}</h5>
+            <div v-for="(option, index) in optionmenu.options" :key="index">
+            <button v-on:click="optionmenu.select(index)">{{option.name}}</button>
+            </div>
+        </div>
         <div class="infopanel">
             <img style="width:100%" :src="infoCard['imageref']" :alt="infoCard['name']+': '+infoCard['title']">
             <table>
@@ -83,24 +89,43 @@
                         <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length" :imageref="oppPlayer.retreat[0]['imageref']"></cardstack>
                         <cardstack v-else title="Retreat" :count="0"></cardstack>
                     </td>
-                    <td>Back Line</td>
+                    <td>
+                        <div v-if="oppPlayer.backLine">
+                        <table v-if="oppPlayer.backLine.length > 0"><tbody><tr>
+                            <td style="width: 50%;"></td>
+                            <td v-for="(unit, index) in oppPlayer.backLine" :key="index">
+                                <unit :oref="unit" @hover="setInfoCard"></unit>
+                            </td>
+                            <td style="width: 50%;"></td>
+                        </tr></tbody></table>
+                            <a v-else>Back Line</a>
+                        </div>
+                        <a v-else>Back Line</a>
+                    </td>
                     <td>
                         <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.length" :imageref="oppPlayer.boundless[0]['imageref']"></cardstack>
                         <cardstack v-else title="Retreat" :count="0"></cardstack>
                     </td>
-                    <td rowspan="2">Bonds</td>
+                    <td rowspan="2">
+                        <a v-if="!oppPlayer.bonds">Bonds</a>
+                        <a v-else-if="oppPlayer.bonds.length === 0">Bonds</a>
+                        <bondarea v-else :dataref="oppPlayer.bonds"></bondarea>
+                    </td>
                 </tr>
                 <tr>
                     <td><facedownstack title="Deck" :count="oppPlayer.deck"></facedownstack></td>
                     <td>
-                    <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
-                        <td style="width: 50%;"></td>
-                        <td v-for="unit in oppPlayer.frontLine" :key="unit.card.name">
-                            <unit :oref="unit" @hover="setInfoCard"></unit>
-                        </td>
-                        <td style="width: 50%;"></td>
-                    </tr></tbody></table>
-                    <a v-else>Front Line</a>
+                        <div v-if="oppPlayer.frontLine">
+                            <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
+                                <td style="width: 50%;"></td>
+                                <td v-for="(unit, index) in oppPlayer.frontLine" :key="index">
+                                    <unit :oref="unit" @hover="setInfoCard"></unit>
+                                </td>
+                                <td style="width: 50%;"></td>
+                            </tr></tbody></table>
+                            <a v-else>Front Line</a>
+                        </div>
+                        <a v-else>Back Line</a>
                     </td>
                     <td><facedownstack title="Orbs" :count="oppPlayer.orbs"></facedownstack></td>
                 </tr>
@@ -126,7 +151,7 @@
                                 :style="(phase === 4) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
                             End
                         </button>
-
+                        <br>{{centermessage}}
                     </td>
                     <td>Support</td>
                 </tr>
@@ -135,15 +160,20 @@
                     <td style="width:75%">
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
-                            <td v-for="unit in thisPlayer.frontLine" :key="unit.card.name">
-                                <unit :oref="unit" @hover="setInfoCard"></unit>
+                            <td v-for="(unit, index) in thisPlayer.frontLine" :key="index">
+                                <unit :oref="unit" @hover="setInfoCard"
+                                      @click="unitClicked(thisPlayer.frontLine, index)"></unit>
                             </td>
                             <td style="width:50%;"></td>
                         </tr></tbody></table>
                         <a v-else>Front Line</a>
                     </td>
                     <td><facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack></td>
-                    <td rowspan="2" style="width:25%;">Bonds</td>
+                    <td rowspan="2" style="width:25%;">
+                        <a v-if="!thisPlayer.bonds">Bonds</a>
+                        <a v-else-if="thisPlayer.bonds.length === 0">Bonds</a>
+                        <bondarea v-else :dataref="thisPlayer.bonds"></bondarea>
+                    </td>
                 </tr>
                 <tr>
                     <td>
@@ -151,8 +181,15 @@
                         <cardstack v-else title="Boundless" :count="0"></cardstack>
                     </td>
                     <td>
-                        <!-- Back Line -->
-                        Back Line
+                        <table v-if="thisPlayer.backLine.length > 0"><tbody><tr>
+                            <td style="width:50%;"></td>
+                            <td v-for="(unit, index) in thisPlayer.backLine" :key="index">
+                                <unit :oref="unit" @hover="setInfoCard"
+                                      @click="unitClicked(thisPlayer.backLine, index)"></unit>
+                            </td>
+                            <td style="width:50%;"></td>
+                        </tr></tbody></table>
+                        <a v-else>Back Line</a>
                     </td>
                     <td>
                         <cardstack v-if="thisPlayer.retreat[0]" title="Retreat" :count="thisPlayer.retreat.length" :imageref="thisPlayer.retreat[0]['imageref']"></cardstack>
@@ -165,18 +202,19 @@
         <div class="hand">
             <table>
                 <tbody>
-                <tr v-if="thisPlayer.hand.length > 0">
+                <tr v-if="thisPlayer.hand.length === 0">HAND</tr>
+                <tr v-else>
                     <td style="width:50%;"></td>
                     <td v-for="(card, index) in thisPlayer.hand" :key="index">
                         <div v-if="!seenCards[card]">
                             <a v-if="fetchCardData(card)"></a>
                         </div>
                         <img v-else height="80px" :src="seenCards[card].imageref" :alt="card"
-                             v-on:mouseenter="infoCard=seenCards[card]">
+                             v-on:mouseenter="infoCard=seenCards[card]" v-on:click="handClick(index)">
                     </td>
                     <td style="width:50%;"></td>
                 </tr>
-                <tr v-else>HAND</tr>
+
                 </tbody>
             </table>
         </div>
@@ -187,11 +225,12 @@
     import Facedownstack from "@/components/facedownstack";
     import Cardstack from "@/components/cardstack";
     import Unit from "@/components/unit"
+    import Bondarea from "@/components/bondarea"
     const fb = require('../firebaseConfig');
 
     export default {
         name: "game.vue",
-        components: {Cardstack, Facedownstack, Unit},
+        components: {Cardstack, Facedownstack, Unit, Bondarea},
         data() {
             return {
                 infoCard: {},
@@ -200,11 +239,10 @@
                 host: false,
                 rps: false,
                 turn: false,
+                mana: 0,
                 phase: -1,
                 communicating: false,
-                handstate: {
-
-                },
+                centermessage: '',
                 cardselect: {
                     active: false,
                     options: [],
@@ -219,6 +257,17 @@
                     prompt: '',
                     yes: null,
                     no: null
+                },
+                optionmenu: {
+                    active: false,
+                    prompt: '',
+                    options: [],
+                    select(index) {
+                        this.options[index].onSelect();
+                        this.active = false;
+                        this.prompt = '';
+                        this.options = [];
+                    }
                 },
                 thisPlayer: {
                     username: '',
@@ -352,17 +401,15 @@
                         // function to set MC
                         this.cardselect.confirm = function(selectedCards) {
                             let MC = {
-                                card: selectedCards[0],
+                                cards: [selectedCards[0]],
                                 MC: true,
-                                stack: 1,
                                 tapped: false
                             };
-                            // let deck = {};
 
                             let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
                             let updateData;
                             updateData = {};
-                            updateData[prefix + 'MC'] = MC.card.name;
+                            updateData[prefix + 'MC'] = MC.cards[0].name;
                             updateData[prefix + 'frontLine'] = [MC];
                             updateData[prefix + 'backLine'] = [];
                             updateData[prefix + 'support'] = null;
@@ -381,7 +428,7 @@
                                 let deck = [];
                                 delete cards['Preferred_MCs'];
 
-                                cards[MC.card.id]--;
+                                cards[MC.cards[0].id]--;
                                 Object.keys(cards).forEach(function (nextCard) {
                                     for (let i=0; i < cards[nextCard]; i++)
                                         deck.push(nextCard);
@@ -488,6 +535,8 @@
                     this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
                     this.thisPlayer.bonds = data.players[this.thisPlayer.username].bonds;
                     this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
+                    if (data.players[this.thisPlayer.username].mana)
+                        this.mana = data.players[this.thisPlayer.username].mana;
 
                     // update known orbs
                     this.thisPlayer.knownOrbs = [];
@@ -537,12 +586,15 @@
                                 break;
                             case 2:
                                 // deploy phase
+                                this.deployPhase(data);
                                 break;
                             case 3:
                                 // action phase
+                                this.actionPhase(data);
                                 break;
                             case 4:
                                 // end phase
+                                this.endPhase(data);
                                 break;
                         }
                     }
@@ -618,6 +670,7 @@
                 }
             },
             deployUnit(card, source, dest, MC) {
+
                 let newUnit = {
                     card: this.fetchCardData(card),
                     MC: MC,
@@ -676,6 +729,17 @@
                 updateData[prefix + 'deck'] = deck;
                 updateData[prefix + 'hand'] = hand;
             },
+            async createUnit(id) {
+                let promise = new Promise((resolve) => {
+                    resolve(this.fetchCardData(id));
+                });
+                let cardData = await promise;
+                return {
+                    cards: [cardData],
+                    MC: false,
+                    tapped: false
+                }
+            },
             async fetchCardData(id) {
                 if (!this.seenCards[id]) {
                     let promise = new Promise((resolve) => {
@@ -732,7 +796,29 @@
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
             },
             nextPhase() {
-                // TODO : disable phase buttons and increment phase in database
+                if (this.communicating)
+                    return;
+                this.communicating = true;
+
+                let thisComponent = this;
+                this.centermessage = '';
+
+                // get database state to modify
+                fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
+                    let data = doc.data();
+
+                    let updateData = {currentPhase: data.currentPhase+1};
+                    let prefix='players.'+thisComponent.thisPlayer.username+'.';
+                    switch (data.currentPhase) {
+                        case 1:
+                            updateData[prefix+'mana'] = data.players[thisComponent.thisPlayer.username].bonds.length;
+                    }
+
+                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData).then(function() {
+                        thisComponent.communicating = false;
+                    });
+
+                });
             },
             beginningPhase(data) {
                 if (this.communicating)
@@ -740,7 +826,8 @@
                 // TODO skip draw if turn = 1
                 this.communicating = true;
                 let updateData = {};
-                this.draw(1, data, updateData);
+                if (data['turn'] > 1)
+                    this.draw(1, data, updateData);
 
                 let frontLine = data.players[this.thisPlayer.username].frontLine;
                 let backLine = data.players[this.thisPlayer.username].backLine;
@@ -764,18 +851,279 @@
                 })
             },
             bondPhase(data) {
+                if (this.turn)
+                    this.centermessage = 'click a card in your hand to bond it';
+                data; // TODO remove if not needed
+            },
+            deployPhase(data) {
+                this.centermessage = 'click a card in your hand to deploy/promote/level up';
+
+                data; // TODO remove if not needed
+            },
+            actionPhase(data) {
+                data; // TODO remove if not needed
+            },
+            endPhase(data) {
+                let updateData = {
+                    currentTurn: data['currentTurn'] + 1,
+                    currentPhase: 0
+                };
+                fb.roomsCollection.doc(this.hostplayer).update(updateData);
+            },
+            handClick(index) {
+                if (this.turn) {
+                    switch (this.phase) {
+                        case 1:
+                            this.bondFromHand(index, true);
+                            break;
+                        case 2:
+                            this.showDeployMenu(index);
+                            break;
+                    }
+                }
+            },
+            bondFromHand(index, incPhase, faceDown) {
+                // suppress duplicate calls
                 if (this.communicating)
                     return;
                 this.communicating = true;
-                this.binaryoption.prompt = 'Would you like to bond a card?';
-                this.binaryoption.yes = function() {
-                    // TODO set handstate
-                    alert(data);
-                };
-                this.binaryoption.no = function() {
 
-                };
-                this.binaryoption.active = true;
+                let thisComponent = this;
+                this.centermessage = '';
+
+                // get database state to modify
+                fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
+                    let data = doc.data();
+                    let hand = data.players[thisComponent.thisPlayer.username].hand;
+                    let bonds = data.players[thisComponent.thisPlayer.username].bonds;
+                    // create
+                    let newBond = {
+                        id: hand[index],
+                        flipped: !!faceDown,
+                        imageref: thisComponent.seenCards[hand[index]].imageref
+                    };
+                    bonds.push(newBond);
+
+                    hand.splice(index, 1);
+
+                    let updateData;
+                    if(incPhase)
+                        updateData = {currentPhase: data.currentPhase+1};
+                    else
+                        updateData = {};
+
+                    let prefix = 'players.'+thisComponent.thisPlayer.username+'.';
+                    updateData[prefix + 'hand'] = hand;
+                    updateData[prefix + 'bonds'] = bonds;
+                    if (incPhase)
+                        updateData[prefix + 'mana'] = bonds.length;
+
+                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData).then(function() {
+                        thisComponent.communicating = false;
+                    });
+
+                });
+            },
+            showDeployMenu(index) {
+                if (this.optionmenu.active)
+                    return;
+
+                this.optionmenu.active = true;
+                let thisComponent = this;
+                fb.roomsCollection.doc(this.hostplayer).get().then(async function (doc) {
+                    let data = doc.data();
+
+                    let promise = new Promise((resolve) => {
+                        resolve(thisComponent.fetchCardData(data.players[thisComponent.thisPlayer.username]
+                            .hand[index]));
+                    });
+                    let cardData = await promise;
+                    thisComponent.optionmenu.prompt = 'What would you like to do with ' + cardData.name + ': ' + cardData.title;
+                    let frontLine = data.players[thisComponent.thisPlayer.username].frontLine;
+                    let backLine = data.players[thisComponent.thisPlayer.username].backLine;
+                    let mana = data.players[thisComponent.thisPlayer.username].mana;
+
+                    // check if board already has a unit with the same name
+                    let temp = frontLine.filter(function(unit) {
+                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                    });
+                    let sameNameOnBoard = temp.length > 0;
+                    temp = backLine.filter(function(unit) {
+                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                    });
+                    sameNameOnBoard = sameNameOnBoard || temp.length > 0;
+
+                    // check to see if we have the promotion cost
+                    let meetsPromoCost = !!cardData['promotion'];
+                    if (meetsPromoCost)
+                        meetsPromoCost = cardData['promotion'] <= mana;
+
+                    // check to see if we meet the deploy cost
+                    let meetsDeployCost = cardData['cost'] <= mana;
+
+                    let options = [];
+                    if (meetsDeployCost && !sameNameOnBoard) {
+                        options.push({
+                            name: 'Deploy To Front Line',
+                            onSelect: function () {
+                                thisComponent.createUnit(cardData.id).then(function(newUnit) {
+                                    let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                    let frontLine = data.players[thisComponent.thisPlayer.username].frontLine;
+
+                                    frontLine.push(newUnit);
+                                    hand.splice(index, 1);
+
+                                    let updateData = {};
+                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+
+                                    updateData[prefix+'hand'] = hand;
+                                    updateData[prefix+'frontLine'] = frontLine;
+                                    updateData[prefix+'mana'] = mana - cardData['cost'];
+
+
+                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                });
+                            }
+                        });
+                        options.push({
+                            name: 'Deploy To Back Line',
+                            onSelect: function () {
+                                thisComponent.createUnit(cardData.id).then(function(newUnit) {
+                                    let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                    let backLine = data.players[thisComponent.thisPlayer.username].backLine;
+
+                                    backLine.push(newUnit);
+                                    hand.splice(index, 1);
+
+                                    let updateData = {};
+                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+
+                                    updateData[prefix +'hand'] = hand;
+                                    updateData[prefix+'backLine'] = backLine;
+                                    updateData[prefix+'mana'] = mana - cardData['cost'];
+
+
+                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                });
+                            }
+                        });
+                    }
+                    else if (sameNameOnBoard && meetsPromoCost)
+                        options.push({
+                            name: 'Promote',
+                            onSelect: function() {
+                                // TODO Promotion Implementation
+                            }
+                        });
+
+                    if (sameNameOnBoard && meetsDeployCost)
+                        options.push({
+                            name: 'Level Up',
+                            onSelect: function() {
+                                // TODO Level Up Implementation
+                            }
+                        });
+
+                    options.push({
+                        name: 'Cancel',
+                        onSelect: function() {}
+                    });
+
+                    thisComponent.optionmenu.options = options;
+                });
+
+
+            },
+            unitClicked(line, index) {
+                if (this.turn) {
+                    switch (this.phase) {
+                        case 3:
+                            this.showActionMenu(line, index);
+                            break;
+                    }
+                }
+            },
+            showActionMenu(line, index) {
+                if (this.optionmenu.active)
+                    return;
+
+                this.optionmenu.active = true;
+                let unit = line[index];
+                let thisComponent = this;
+                function validAttackLines(unit) {
+                    let inFrontLine = line === thisComponent.thisPlayer.frontLine;
+                    let canAttackFrontLine = false;
+                    let canAttackBackLine = false;
+
+                    switch (unit.cards[0].range) {
+                        case "1":
+                            canAttackFrontLine = inFrontLine;
+                            break;
+                        case "2":
+                            canAttackFrontLine = !inFrontLine;
+                            canAttackBackLine = inFrontLine;
+                            break;
+                        case "3":
+                            canAttackBackLine = !inFrontLine;
+                            break;
+                        case "1-2":
+                            canAttackFrontLine = true;
+                            canAttackBackLine = inFrontLine;
+                            break;
+                        case "2-3":
+                            canAttackFrontLine = !inFrontLine;
+                            canAttackBackLine = true;
+                            break;
+                        case "1-3":
+                            canAttackFrontLine = true;
+                            canAttackBackLine = true;
+                            break;
+                        case "-":
+                            break;
+                    }
+
+                    return [canAttackFrontLine, canAttackBackLine];
+                }
+                fb.roomsCollection.doc(this.hostplayer).get().then(function(doc)
+                {
+                    let data = doc.data();
+                    let tapped = unit.tapped;
+
+                    let validLines = validAttackLines(unit);
+                    let canAttackFrontLine = validLines[0] && this.oppPlayer.frontLine.length > 0;
+                    let canAttackBackLine = validLines[1] && this.oppPlayer.backLine.length > 0;
+
+                    let canAttack = !tapped && (canAttackFrontLine || canAttackBackLine) && data['currentTurn'] > 1;
+                    let canMove = !tapped;
+
+                    let options = [];
+
+                    if (canAttack) {
+                        options.push({
+                            name: 'Attack',
+                            onSelect: function () {
+                                // TODO : select target
+                            }
+                        })
+                    }
+                    if (canMove) {
+                        options.push({
+                            name: 'Move',
+                            onSelect: function () {
+                                // TODO : tap and change lines
+                            }
+                        })
+                    }
+                    options.push({
+                        name: 'Cancel',
+                        onSelect: function () {
+                        }
+                    });
+
+                    thisComponent.optionmenu.options = options;
+                    thisComponent.optionmenu.prompt = 'What would you like to do with ' + unit.cards[0].name + ': ' +
+                        unit.cards[0].title;
+                });
             }
         }
     }

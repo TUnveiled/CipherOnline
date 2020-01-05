@@ -1,11 +1,13 @@
     <template>
-        <div class="unit" v-on:mouseenter="onHover">
+        <div class="unit" v-on:mouseenter="onHover" v-on:click="onClick">
+            <div v-if="oref">
             <div class="title" v-if="oref.MC">MC</div>
-            <img class="image" :src="oref.card.imageref" alt="card" :style="
+            <img class="image" :src="oref.cards[0].imageref" alt="card" :style="
                 (oref.tapped) ? 'transform: rotate(90deg);' : ''
                  ">
             <div class="stack" v-if="oref.stack > 0">{{oref.stack}}</div>
-            <div class="attack">{{oref.card.attack}}</div>
+            <div class="attack">{{oref.cards[0].attack}}</div>
+            </div>
         </div>
     </template>
 
@@ -23,7 +25,10 @@
             },
             methods: {
                 onHover() {
-                    this.$emit('hover', this.oref.card);
+                    this.$emit('hover', this.oref.cards[0]);
+                },
+                onClick() {
+                    this.$emit('click');
                 }
             }
         }
