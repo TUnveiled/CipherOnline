@@ -1,11 +1,13 @@
 <template>
     <div class="grid-container">
         <div class="window" id="rps" :style="(rps) ? 'display:block' : 'display:none'">
+            <!-- window used for rock-paper-scissors -->
             <button v-on:click="rpsPick('r')">ROCK</button>
             <button v-on:click="rpsPick('p')">PAPER</button>
             <button v-on:click="rpsPick('s')">SCISSORS</button>
         </div>
         <div class="window" id="cardselect" :style="(cardselect.active) ? 'display:block' : 'display:none'">
+            <!-- window used to select a card from a list -->
             <h2 style="color:black;">{{cardselect.message}}</h2>
             <a style="color:black;" v-if="cardselect.min === cardselect.max">
                 {{cardselect.numSelected}} currently selected (need {{cardselect.max}})
@@ -34,17 +36,20 @@
                    v-on:click="confirmSelection">Select</button>
         </div>
         <div class="window" id="binaryoption" :style="binaryoption.active ? 'display:block' : 'display:none'">
+            <!-- window used for yes/no questions -->
             <h2 style="color:black">{{binaryoption.prompt}}</h2>
             <button v-on:click="binaryYes">yes</button>
             <button v-on:click="binaryNo">no</button>
         </div>
         <div class="window" id="optionmenu" :style="optionmenu.active ? 'display:block' : 'display:none'">
+            <!-- window used to select from a variable number of options -->
             <h5 style="color:black">{{optionmenu.prompt}}</h5>
             <div v-for="(option, index) in optionmenu.options" :key="index">
             <button v-on:click="optionmenu.select(index)">{{option.name}}</button>
             </div>
         </div>
         <div class="infopanel">
+            <!-- Left Panel that describes the card stored as "infoCard" -->
             <img style="width:100%" :src="infoCard['imageref']" :alt="infoCard['name']+': '+infoCard['title']">
             <table>
                 <tr>
@@ -68,9 +73,10 @@
             </table>
         </div>
         <div class="opp">
+            <!-- div displaying the number of cards in the opponent's hand -->
             <table>
                 <tbody>
-                <tr v-if="thisPlayer.hand.length > 0">
+                <tr v-if="oppPlayer.hand > 0">
                     <td style="width:50%;"></td>
                     <td v-for="index in oppPlayer.hand" :key="index">
                         <img height="80px" src="https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png" alt="card">
@@ -82,14 +88,15 @@
             </table>
         </div>
         <div class="gameboard">
+            <!-- table where the state of the game is displayed -->
             <table class="playarea">
                 <tbody>
                 <tr>
-                    <td>
+                    <td> <!-- Opponent's retreat pile -->
                         <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length" :imageref="oppPlayer.retreat[0]['imageref']"></cardstack>
                         <cardstack v-else title="Retreat" :count="0"></cardstack>
                     </td>
-                    <td>
+                    <td> <!-- Opponent's back line -->
                         <div v-if="oppPlayer.backLine">
                         <table v-if="oppPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width: 50%;"></td>
@@ -102,19 +109,21 @@
                         </div>
                         <a v-else>Back Line</a>
                     </td>
-                    <td>
+                    <td> <!-- Opponent's Boundless Area -->
                         <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.length" :imageref="oppPlayer.boundless[0]['imageref']"></cardstack>
                         <cardstack v-else title="Retreat" :count="0"></cardstack>
                     </td>
-                    <td rowspan="2">
+                    <td rowspan="2"> <!-- Opponent's Bond Area -->
                         <a v-if="!oppPlayer.bonds">Bonds</a>
                         <a v-else-if="oppPlayer.bonds.length === 0">Bonds</a>
                         <bondarea v-else :dataref="oppPlayer.bonds"></bondarea>
                     </td>
                 </tr>
                 <tr>
-                    <td><facedownstack title="Deck" :count="oppPlayer.deck"></facedownstack></td>
-                    <td>
+                    <td> <!-- Opponent's Deck -->
+                        <facedownstack title="Deck" :count="oppPlayer.deck"></facedownstack>
+                    </td>
+                    <td> <!-- Opponent's Front Line -->
                         <div v-if="oppPlayer.frontLine">
                             <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
                                 <td style="width: 50%;"></td>
@@ -125,13 +134,22 @@
                             </tr></tbody></table>
                             <a v-else>Front Line</a>
                         </div>
-                        <a v-else>Back Line</a>
+                        <a v-else>Front Line</a>
                     </td>
-                    <td><facedownstack title="Orbs" :count="oppPlayer.orbs"></facedownstack></td>
+                    <td>
+                        <!-- Opponent's Orbs -->
+                        <facedownstack title="Orbs" :count="oppPlayer.orbs"></facedownstack>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Support</td>
                     <td>
+                        <!-- Opponent's Support Area
+                             TODO : add functionality -->
+                        Support
+                    </td>
+                    <td>
+                        <!-- Phase Buttons; Display current phase and allow phase to be changed
+                             when appropriate -->
                         Phases<br>
                         <button class="phasebutton" disabled :style="(phase === 0) ? 'background: lightgreen;' : ''">
                             Beginning
@@ -153,11 +171,17 @@
                         </button>
                         <br>{{centermessage}}
                     </td>
-                    <td>Support</td>
+                    <td>
+                        <!-- Your Support Area
+                             TODO : add functionality -->
+                        Support
+                    </td>
                 </tr>
                 <tr>
-                    <td><facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack></td>
-                    <td style="width:75%">
+                    <td> <!-- Your Orbs -->
+                        <facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack>
+                    </td>
+                    <td style="width:75%"> <!-- Your Front Line -->
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.frontLine" :key="index">
@@ -168,19 +192,22 @@
                         </tr></tbody></table>
                         <a v-else>Front Line</a>
                     </td>
-                    <td><facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack></td>
+                    <td> <!-- Your Deck -->
+                        <facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack>
+                    </td>
                     <td rowspan="2" style="width:25%;">
+                        <!-- Your Bond Area -->
                         <a v-if="!thisPlayer.bonds">Bonds</a>
                         <a v-else-if="thisPlayer.bonds.length === 0">Bonds</a>
                         <bondarea v-else :dataref="thisPlayer.bonds"></bondarea>
                     </td>
                 </tr>
                 <tr>
-                    <td>
+                    <td> <!-- Your Boundless Area -->
                         <cardstack v-if="thisPlayer.boundless[0]" title="Boundless" :count="thisPlayer.boundless.length" :imageref="thisPlayer.boundless[0]['imageref']"></cardstack>
                         <cardstack v-else title="Boundless" :count="0"></cardstack>
                     </td>
-                    <td>
+                    <td> <!-- Your Back Line -->
                         <table v-if="thisPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.backLine" :key="index">
@@ -191,7 +218,7 @@
                         </tr></tbody></table>
                         <a v-else>Back Line</a>
                     </td>
-                    <td>
+                    <td> <!-- Your Retreat Pile -->
                         <cardstack v-if="thisPlayer.retreat[0]" title="Retreat" :count="thisPlayer.retreat.length" :imageref="thisPlayer.retreat[0]['imageref']"></cardstack>
                         <cardstack v-else title="Retreat" :count="0"></cardstack>
                     </td>
@@ -200,6 +227,7 @@
             </table>
         </div>
         <div class="hand">
+            <!-- Div for displaying the player's hand -->
             <table>
                 <tbody>
                 <tr v-if="thisPlayer.hand.length === 0">HAND</tr>
@@ -310,6 +338,8 @@
             },
             update(data) {
                 if (data['currentTurn'] < 0) { // setup
+
+                    // make changes to how the board is set up as it happens
                     this.otherplayer = data['other'];
                     if (data.players[this.thisPlayer.username].frontLine)
                         this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
@@ -344,7 +374,23 @@
                     // TODO change so you can't see opponent's MC during setup after testing
                     if (this.oppPlayer.username) {
                         if (data.players[this.oppPlayer.username].frontLine)
-                            this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                            this.oppPlayer.frontLine = [{
+                                cards: [{
+                                    name: '?',
+                                    title: '?',
+                                    cost: 1,
+                                    attack: '?',
+                                    support: '?',
+                                    range: '?',
+                                    symbol: '?',
+                                    quote: '',
+                                    affinities: [],
+                                    imageref: "https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png"
+                                }],
+                                MC: true,
+                                tapped: false,
+                                stack: 1
+                            }];
                         else
                             this.oppPlayer.frontLine = [];
                     }
@@ -557,6 +603,7 @@
                     this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
                     this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
 
+
                     // update known orbs
                     this.oppPlayer.knownOrbs = [];
                     for (let i = 0; i < this.oppPlayer.orbs; i++) {
@@ -575,6 +622,9 @@
                     this.turn = !!((a ^ b) ^ c);
 
                     if (this.turn) {
+                        if (this.oppPlayer.frontLine.length === 0)
+                            this.forcedMarch(data);
+
                         switch (data.currentPhase) {
                             case 0:
                                 // beginning phase
@@ -718,16 +768,22 @@
             },
             draw(num, data, updateData) {
                 let deck = data.players[this.thisPlayer.username].deck;
-
+                let retreat = data.players[this.thisPlayer.username].retreat;
                 let hand = data.players[this.thisPlayer.username].hand;
 
-                for (let i = 0; i < num; i++)
+                for (let i = 0; i < num; i++) {
                     hand.push(this._draw(deck));
+                    if (deck.length === 0) {
+                        deck = retreat;
+                        retreat = [];
+                    }
+                }
 
                 let prefix = 'players.' + this.thisPlayer.username + '.';
 
                 updateData[prefix + 'deck'] = deck;
                 updateData[prefix + 'hand'] = hand;
+                return updateData;
             },
             async createUnit(id) {
                 let promise = new Promise((resolve) => {
@@ -821,34 +877,35 @@
                 });
             },
             beginningPhase(data) {
-                if (this.communicating)
-                    return;
-                // TODO skip draw if turn = 1
-                this.communicating = true;
-                let updateData = {};
-                if (data['turn'] > 1)
-                    this.draw(1, data, updateData);
+                if (!this.communicating) {
+                    this.communicating = true;
+                    let updateData = {};
 
-                let frontLine = data.players[this.thisPlayer.username].frontLine;
-                let backLine = data.players[this.thisPlayer.username].backLine;
+                    let frontLine = data.players[this.thisPlayer.username].frontLine;
+                    let backLine = data.players[this.thisPlayer.username].backLine;
 
-                frontLine.forEach(function(unit) {
-                    unit.tapped = false;
-                });
-                backLine.forEach(function(unit) {
-                    unit.tapped = false;
-                });
-                updateData['currentPhase'] = 1;
+                    frontLine.forEach(function (unit) {
+                        unit.tapped = false;
+                    });
+                    backLine.forEach(function (unit) {
+                        unit.tapped = false;
+                    });
+                    updateData['currentPhase'] = 1;
 
-                updateData['players.' + this.thisPlayer.username + '.frontLine'] = frontLine;
-                updateData['players.' + this.thisPlayer.username + '.backLine']  = backLine;
+                    updateData['players.' + this.thisPlayer.username + '.frontLine'] = frontLine;
+                    updateData['players.' + this.thisPlayer.username + '.backLine'] = backLine;
 
-                let thisComponent = this;
-                fb.roomsCollection.doc(this.hostplayer).update(updateData).then(function() {
-                    setTimeout(function() {
-                        thisComponent.communicating = false;
-                    }, 1000)
-                })
+                    let thisComponent = this;
+
+                    if (data['currentTurn'] && data['currentTurn'] > 1 && data['currentPhase'] === 0) {
+                        updateData = this.draw(1, data, updateData);
+                    }
+                    fb.roomsCollection.doc(this.hostplayer).update(updateData).then(function () {
+                        setTimeout(function () {
+                            thisComponent.communicating = false;
+                        }, 1000);
+                    });
+                }
             },
             bondPhase(data) {
                 if (this.turn)
@@ -1032,7 +1089,6 @@
                     thisComponent.optionmenu.options = options;
                 });
 
-
             },
             unitClicked(line, index) {
                 if (this.turn) {
@@ -1090,8 +1146,8 @@
                     let tapped = unit.tapped;
 
                     let validLines = validAttackLines(unit);
-                    let canAttackFrontLine = validLines[0] && this.oppPlayer.frontLine.length > 0;
-                    let canAttackBackLine = validLines[1] && this.oppPlayer.backLine.length > 0;
+                    let canAttackFrontLine = validLines[0] && thisComponent.oppPlayer.frontLine.length > 0;
+                    let canAttackBackLine = validLines[1] && thisComponent.oppPlayer.backLine.length > 0;
 
                     let canAttack = !tapped && (canAttackFrontLine || canAttackBackLine) && data['currentTurn'] > 1;
                     let canMove = !tapped;
@@ -1111,6 +1167,30 @@
                             name: 'Move',
                             onSelect: function () {
                                 // TODO : tap and change lines
+                                let frontLine = thisComponent.thisPlayer.frontLine;
+                                let backLine = thisComponent.thisPlayer.backLine;
+                                let unit;
+
+                                if (line === frontLine) {
+                                    unit = frontLine[index];
+                                    unit.tapped = true;
+                                    frontLine.splice(index,1);
+                                    backLine.push(unit);
+                                } else if (line === backLine) {
+                                    unit = backLine[index];
+                                    unit.tapped = true;
+                                    backLine.splice(index, 1);
+                                    frontLine.push(unit);
+                                } else  {
+                                    alert("An error occurred, try again");
+                                    return;
+                                }
+                                let updateData = {};
+                                let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                updateData[prefix+'frontLine'] = frontLine;
+                                updateData[prefix+'backLine'] = backLine;
+
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
                             }
                         })
                     }
@@ -1124,6 +1204,19 @@
                     thisComponent.optionmenu.prompt = 'What would you like to do with ' + unit.cards[0].name + ': ' +
                         unit.cards[0].title;
                 });
+            },
+            forcedMarch(data) {
+                let opponentData = data.players[this.oppPlayer.username];
+                let backLine = opponentData.backLine;
+                let frontLine = backLine;
+                backLine = [];
+
+                let updateData = {};
+                let prefix = 'players.' + this.oppPlayer.username + '.';
+                updateData[prefix+'frontLine'] = frontLine;
+                updateData[prefix+'backLine'] = backLine;
+
+                fb.roomsCollection.doc(this.hostplayer).update(updateData);
             }
         }
     }

@@ -1,6 +1,8 @@
     <template>
         <div class="unit" v-on:mouseenter="onHover" v-on:click="onClick">
-            <div v-if="oref">
+            <div v-if="oref" :style="
+                (oref.tapped) ? 'min-width: 80px;' : ''
+                 ">
             <div class="title" v-if="oref.MC">MC</div>
             <img class="image" :src="oref.cards[0].imageref" alt="card" :style="
                 (oref.tapped) ? 'transform: rotate(90deg);' : ''
