@@ -7,7 +7,7 @@
             <img class="image" :src="oref.cards[0].imageref" alt="card" :style="
                 ((oref.tapped) ? 'transform: rotate(90deg);' : '') +
                 ((canselect === true) ? 'border: 3px solid green' : 'border: 1px solid black')">
-            <div class="stack" v-if="oref.stack > 0">{{oref.stack}}</div>
+            <div class="stack" v-if="oref.cards.length > 0">{{oref.cards.length}}</div>
             <div class="attack">{{oref.cards[0].attack}}</div>
             </div>
         </div>

@@ -93,8 +93,16 @@
                 <tbody>
                 <tr>
                     <td> <!-- Opponent's retreat pile -->
-                        <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length" :imageref="oppPlayer.retreat[0]['imageref']"></cardstack>
-                        <cardstack v-else title="Retreat" :count="0"></cardstack>
+                        <div v-if="seenCards[oppPlayer.retreat[0]]">
+                            <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length"
+                                       :imageref="seenCards[oppPlayer.retreat[0]].imageref"></cardstack>
+                        </div>
+                        <div v-else>
+                            <div v-if="oppPlayer.retreat.length === 0">
+                                <cardstack title="Retreat" :count="0"></cardstack>
+                            </div>
+                            <div v-else-if="fetchCardData(oppPlayer.retreat[0])">Loading...</div>
+                        </div>
                     </td>
                     <td> <!-- Opponent's back line -->
                         <div v-if="oppPlayer.backLine">
@@ -249,8 +257,16 @@
                         <a v-else>Back Line</a>
                     </td>
                     <td> <!-- Your Retreat Pile -->
-                        <cardstack v-if="thisPlayer.retreat[0]" title="Retreat" :count="thisPlayer.retreat.length" :imageref="thisPlayer.retreat[0]['imageref']"></cardstack>
-                        <cardstack v-else title="Retreat" :count="0"></cardstack>
+                        <div v-if="seenCards[thisPlayer.retreat[0]]">
+                            <cardstack v-if="thisPlayer.retreat[0]" title="Retreat" :count="thisPlayer.retreat.length"
+                                       :imageref="seenCards[thisPlayer.retreat[0]].imageref"></cardstack>
+                        </div>
+                        <div v-else>
+                            <div v-if="thisPlayer.retreat.length === 0">
+                                <cardstack title="Retreat" :count="0"></cardstack>
+                            </div>
+                            <div v-else-if="fetchCardData(thisPlayer.retreat[0])">Loading...</div>
+                        </div>
                     </td>
                 </tr>
                 </tbody>
@@ -716,6 +732,7 @@
                     this.host = true;
 
                 fb.roomsCollection.doc(this.hostplayer).get().then(function(room) {
+
                     let roomData = room.data();
                     thisComponent.otherplayer = roomData['other'];
 
@@ -727,6 +744,10 @@
                 });
 
                 fb.roomsCollection.doc(this.hostplayer).onSnapshot(function(room) {
+                    if (!room.exists) {
+                        alert("this game has ended");
+                        thisComponent.$router.push("/matchmaking");
+                    }
                     let roomData = room.data();
                     thisComponent.update(roomData);
                 });
@@ -832,6 +853,7 @@
 
                 updateData[prefix + 'deck'] = deck;
                 updateData[prefix + 'hand'] = hand;
+                updateData[prefix + 'retreat'] = retreat;
                 return updateData;
             },
             async createUnit(id) {
@@ -987,6 +1009,8 @@
                                 updateData[prefix + 'retreat'] = retreat;
                                 updateData[prefix + 'support'] = support;
                                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
+                                this.checkSupports(data);
+                            } else {
                                 this.checkSupports(data);
                             }
 
@@ -1213,6 +1237,10 @@
                                     let orbs = data.players[this.oppPlayer.username].orbs;
                                     if (orbs.length === 0) {
                                         alert("You Win!");
+                                        let thisComponent = this;
+                                        fb.roomsCollection.doc(this.hostplayer).delete().then(function() {
+                                            thisComponent.$router.push("/matchmaking");
+                                        });
                                     } else {
                                         let hand = data.players[this.oppPlayer.username].hand;
                                         hand.push(this._draw(orbs).cardID);
@@ -1327,14 +1355,14 @@
                     let mana = data.players[thisComponent.thisPlayer.username].mana;
 
                     // check if board already has a unit with the same name
-                    let temp = frontLine.filter(function(unit) {
+                    let inFrontLine = frontLine.filter(function(unit) {
                         return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                    });
-                    let sameNameOnBoard = temp.length > 0;
-                    temp = backLine.filter(function(unit) {
+                    }).length > 0;
+
+                    let inBackLine = backLine.filter(function(unit) {
                         return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                    });
-                    sameNameOnBoard = sameNameOnBoard || temp.length > 0;
+                    }).length > 0;
+                    let sameNameOnBoard = inFrontLine || inBackLine;
 
                     // check to see if we have the promotion cost
                     let meetsPromoCost = !!cardData['promotion'];
@@ -1395,7 +1423,33 @@
                         options.push({
                             name: 'Promote',
                             onSelect: function() {
-                                // TODO Promotion Implementation
+                                let updateData = {};
+                                let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                if (inFrontLine) {
+                                    let unitToPromote = frontLine.filter(function(unit) {
+                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                                    })[0];
+
+                                    unitToPromote.cards.splice(0, 0, cardData);
+                                    updateData[prefix+'frontLine'] = frontLine;
+                                } else {
+                                    let unitToPromote = backLine.filter(function(unit) {
+                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                                    })[0];
+
+                                    unitToPromote.cards.splice(0, 0, cardData);
+                                    updateData[prefix+'backLine'] = backLine;
+                                }
+                                let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                for (let i = 0; i < hand.length; i++) {
+                                    if (hand[i].localeCompare(cardData.id) === 0) {
+                                        hand.splice(i, 1);
+                                        break;
+                                    }
+                                }
+                                updateData[prefix+'mana'] = mana - cardData['promotion'];
+                                thisComponent.draw(1, data, updateData);
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
                             }
                         });
 
@@ -1403,7 +1457,32 @@
                         options.push({
                             name: 'Level Up',
                             onSelect: function() {
-                                // TODO Level Up Implementation
+                                let updateData = {};
+                                let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                if (inFrontLine) {
+                                    let unitToPromote = frontLine.filter(function(unit) {
+                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                                    })[0];
+
+                                    unitToPromote.cards.splice(0, 0, cardData);
+                                    updateData[prefix+'frontLine'] = frontLine;
+                                } else {
+                                    let unitToPromote = backLine.filter(function(unit) {
+                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
+                                    })[0];
+
+                                    unitToPromote.cards.splice(0, 0, cardData);
+                                    updateData[prefix+'backLine'] = backLine;
+                                }
+                                let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                for (let i = 0; i < hand.length; i++) {
+                                    if (hand[i].localeCompare(cardData.id) === 0) {
+                                        hand.splice(i, 1);
+                                        break;
+                                    }
+                                }
+                                updateData[prefix+'mana'] = mana - cardData['deploy'];
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
                             }
                         });
 
@@ -1584,28 +1663,32 @@
                     data.players[this.thisPlayer.username].support != null && this.turn
                     && this.seenCards[data.players[this.thisPlayer.username].support]
                     && this.seenCards[data.players[this.oppPlayer.username].support]) {
-                    let attack;
-                    let defense;
+                    let attackingUnit;
+                    let defendingUnit;
                     if (data.attackState.attackingFrom.localeCompare("f") === 0) {
                         // attacking from frontline
-                        attack = data.players[this.thisPlayer.username].
-                            frontLine[data.attackState.selectedAttacker].cards[0].attack;
+                        attackingUnit = data.players[this.thisPlayer.username].
+                            frontLine[data.attackState.selectedAttacker].cards[0];
                     } else {
                         // attacking from backline
-                        attack = data.players[this.thisPlayer.username].
-                            backLine[data.attackState.selectedAttacker].cards[0].attack;
+                        attackingUnit = data.players[this.thisPlayer.username].
+                            backLine[data.attackState.selectedAttacker].cards[0];
                     }
                     if (data.attackState.defendingFrom.localeCompare("f") === 0) {
                         // defending from frontline
-                        defense = data.players[this.oppPlayer.username].
-                            frontLine[data.attackState.selectedDefender].cards[0].attack;
+                        defendingUnit = data.players[this.oppPlayer.username].
+                            frontLine[data.attackState.selectedDefender].cards[0];
                     } else {
-                        // attacking from backline
-                        defense = data.players[this.oppPlayer.username].
-                            backLine[data.attackState.selectedDefender].cards[0].attack;
+                        // defending from backline
+                        defendingUnit = data.players[this.oppPlayer.username].
+                            backLine[data.attackState.selectedDefender].cards[0];
                     }
-                    attack += this.seenCards[data.players[this.thisPlayer.username].support].support;
-                    defense += this.seenCards[data.players[this.oppPlayer.username].support].support;
+                    let attack = attackingUnit.attack;
+                    let defense = defendingUnit.attack;
+                    if (this.seenCards[data.players[this.thisPlayer.username].support].name !== attackingUnit.name)
+                        attack += this.seenCards[data.players[this.thisPlayer.username].support].support;
+                    if (this.seenCards[data.players[this.oppPlayer.username].support].name !== defendingUnit.name)
+                        defense += this.seenCards[data.players[this.oppPlayer.username].support].support;
 
                     let updateData = {};
                     updateData['attackState.step'] = 4;
