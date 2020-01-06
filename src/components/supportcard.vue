@@ -1,35 +1,42 @@
 <template>
-    <div class="facedownstack">
-        <div class="title">{{title}}</div>
-        <img class="image" :src="imageref" alt="card back">
-        <div class="count">{{count}}</div>
+    <div class="supportcard" v-on:mouseenter="onHover">
+        <div v-if="oref">
+            <div class="title"> Support</div>
+            <img class="image" :src="oref.imageref" alt="card">
+            <div class="support">{{oref.support}}</div>
+        </div>
     </div>
 </template>
 
 <script>
     export default {
-        name: "facedownstack",
+        name: "supportcard",
+        mounted() {
+
+        },
         data() {
-            return {
-                imageref: "https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png"
-            }
+            return this.oref;
         },
         props: {
-            title: String,
-            count: Number
+            oref: Object
+        },
+        methods: {
+            onHover() {
+                this.$emit('hover', this.oref);
+            }
         }
     }
 </script>
 
 <style scoped>
-    .facedownstack {
+    .supportcard {
         position: relative;
     }
 
     .title {
         z-index: 1;
         text-shadow: 1px 1px black;
-        font-size: 14px;
+        font-size: 12px;
         color: white;
         position: absolute;
         top: 5%;
@@ -43,9 +50,10 @@
         z-index: 0;
         position: relative;
         text-align: center;
+        border-radius: 6px;
     }
 
-    .count {
+    .support {
         z-index: 1;
         text-shadow: 1px 1px black;
         font-size: 25px;
@@ -53,7 +61,8 @@
         position: absolute;
         top: 60%;
         right: 0;
-        left: 0;
+        left: 40%;
         bottom: 0;
     }
+
 </style>

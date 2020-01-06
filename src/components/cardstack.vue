@@ -51,7 +51,7 @@
     .count {
         z-index: 1;
         text-shadow: 1px 1px black;
-        font-size: 30px;
+        font-size: 25px;
         color: white;
         position: absolute;
         top: 60%;

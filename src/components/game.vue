@@ -19,7 +19,7 @@
             <table>
                 <tbody>
                 <tr>
-                    <td v-for="element in cardselect.options" :key="element['id'] + element['count'].toString()">
+                    <td v-for="(element, index) in cardselect.options" :key="index">
                         <img height="200px" :src="element.imageref" alt="" :style="
                          'opacity: ' + ((element.valid) ? 1 : 0.5) + ';' +
                          'border: ' + ((element.selected) ? '3px solid green' : '3px solid white') + ';' +
@@ -101,7 +101,12 @@
                         <table v-if="oppPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width: 50%;"></td>
                             <td v-for="(unit, index) in oppPlayer.backLine" :key="index">
-                                <unit :oref="unit" @hover="setInfoCard"></unit>
+                                <div v-if="!seenCards[unit.cards[0].id]">
+                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                </div>
+                                <unit :oref="unit" :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackBackLine "
+                                      @hover="setInfoCard" v-else
+                                      @click="unitClicked(oppPlayer.backLine, index)"></unit>
                             </td>
                             <td style="width: 50%;"></td>
                         </tr></tbody></table>
@@ -111,7 +116,7 @@
                     </td>
                     <td> <!-- Opponent's Boundless Area -->
                         <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.length" :imageref="oppPlayer.boundless[0]['imageref']"></cardstack>
-                        <cardstack v-else title="Retreat" :count="0"></cardstack>
+                        <cardstack v-else title="Boundless" :count="0"></cardstack>
                     </td>
                     <td rowspan="2"> <!-- Opponent's Bond Area -->
                         <a v-if="!oppPlayer.bonds">Bonds</a>
@@ -128,7 +133,12 @@
                             <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
                                 <td style="width: 50%;"></td>
                                 <td v-for="(unit, index) in oppPlayer.frontLine" :key="index">
-                                    <unit :oref="unit" @hover="setInfoCard"></unit>
+                                    <div v-if="!seenCards[unit.cards[0].id]">
+                                        <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                    </div>
+                                    <unit :oref="unit" :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackFrontLine"
+                                          @hover="setInfoCard" v-else
+                                          @click="unitClicked(oppPlayer.frontLine, index)"></unit>
                                 </td>
                                 <td style="width: 50%;"></td>
                             </tr></tbody></table>
@@ -143,9 +153,15 @@
                 </tr>
                 <tr>
                     <td>
-                        <!-- Opponent's Support Area
-                             TODO : add functionality -->
-                        Support
+                        <!-- Opponent's Support Area -->
+                        <div v-if="oppPlayer.support">
+                            <div v-if="!seenCards[oppPlayer.support]"><a v-if="fetchCardData(oppPlayer.support)">Loading...</a></div>
+                            <supportcard v-else :oref="seenCards[oppPlayer.support]"
+                                         @hover="setInfoCard(seenCards[oppPlayer.support])"></supportcard>
+                        </div>
+                        <div v-else>
+                            Support
+                        </div>
                     </td>
                     <td>
                         <!-- Phase Buttons; Display current phase and allow phase to be changed
@@ -165,16 +181,22 @@
                                 :style="(phase === 3) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
                             Action
                         </button>
-                        <button class="phasebutton" :disabled="!turn || phase !== 3"
+                        <button class="phasebutton" :disabled="!turn || phase !== 3 || attackState.active"
                                 :style="(phase === 4) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
                             End
                         </button>
                         <br>{{centermessage}}
                     </td>
                     <td>
-                        <!-- Your Support Area
-                             TODO : add functionality -->
-                        Support
+                        <!-- Your Support Area -->
+                        <div v-if="thisPlayer.support">
+                            <div v-if="!seenCards[thisPlayer.support]"><a v-if="fetchCardData(thisPlayer.support)">Loading...</a></div>
+                            <supportcard v-else :oref="seenCards[thisPlayer.support]"
+                                         @hover="setInfoCard(seenCards[thisPlayer.support])">></supportcard>
+                        </div>
+                        <div v-else>
+                            Support
+                        </div>
                     </td>
                 </tr>
                 <tr>
@@ -182,15 +204,20 @@
                         <facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack>
                     </td>
                     <td style="width:75%"> <!-- Your Front Line -->
+                        <div v-if="thisPlayer.frontLine">
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.frontLine" :key="index">
-                                <unit :oref="unit" @hover="setInfoCard"
+                                <div v-if="!seenCards[unit.cards[0].id]">
+                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                </div>
+                                <unit :oref="unit" @hover="setInfoCard" v-else
                                       @click="unitClicked(thisPlayer.frontLine, index)"></unit>
                             </td>
                             <td style="width:50%;"></td>
                         </tr></tbody></table>
                         <a v-else>Front Line</a>
+                        </div>
                     </td>
                     <td> <!-- Your Deck -->
                         <facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack>
@@ -211,7 +238,10 @@
                         <table v-if="thisPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.backLine" :key="index">
-                                <unit :oref="unit" @hover="setInfoCard"
+                                <div v-if="!seenCards[unit.cards[0].id]">
+                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                </div>
+                                <unit :oref="unit" @hover="setInfoCard" v-else
                                       @click="unitClicked(thisPlayer.backLine, index)"></unit>
                             </td>
                             <td style="width:50%;"></td>
@@ -254,11 +284,12 @@
     import Cardstack from "@/components/cardstack";
     import Unit from "@/components/unit"
     import Bondarea from "@/components/bondarea"
+    import Supportcard from "@/components/supportcard";
     const fb = require('../firebaseConfig');
 
     export default {
         name: "game.vue",
-        components: {Cardstack, Facedownstack, Unit, Bondarea},
+        components: {Supportcard, Cardstack, Facedownstack, Unit, Bondarea},
         data() {
             return {
                 infoCard: {},
@@ -267,6 +298,18 @@
                 host: false,
                 rps: false,
                 turn: false,
+                attackState: {
+                    active: false,
+                    attack: 0,
+                    defense: 0,
+                    canAttackFrontLine: false,
+                    canAttackBackLine: false,
+                    selectedAttacker: null,
+                    attackingFrom: null,
+                    selectedDefender: null,
+                    defendingFrom: null,
+                    step: -1 // 0 : declaration, 1 : skills,  2 : supp, 3 : supp skills, 4 : crit, 5 : evade, 6 : result
+                },
                 mana: 0,
                 phase: -1,
                 communicating: false,
@@ -465,6 +508,7 @@
                             updateData[prefix + 'orbs'] = [];
                             updateData[prefix + 'bonds'] = [];
                             updateData[prefix + 'hand'] = [];
+                            updateData['attackState'] = thisComponent.attackState;
 
                             fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
 
@@ -581,6 +625,7 @@
                     this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
                     this.thisPlayer.bonds = data.players[this.thisPlayer.username].bonds;
                     this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
+                    this.attackState = data.attackState;
                     if (data.players[this.thisPlayer.username].mana)
                         this.mana = data.players[this.thisPlayer.username].mana;
 
@@ -621,21 +666,24 @@
                     let c = data.currentTurn % 2;
                     this.turn = !!((a ^ b) ^ c);
 
-                    if (this.turn) {
+
                         if (this.oppPlayer.frontLine.length === 0)
                             this.forcedMarch(data);
 
                         switch (data.currentPhase) {
                             case 0:
                                 // beginning phase
+                                if (this.turn)
                                 this.beginningPhase(data);
                                 break;
                             case 1:
                                 // bond phase
+                                if (this.turn)
                                 this.bondPhase(data);
                                 break;
                             case 2:
                                 // deploy phase
+                                if (this.turn)
                                 this.deployPhase(data);
                                 break;
                             case 3:
@@ -644,10 +692,11 @@
                                 break;
                             case 4:
                                 // end phase
+                                if (this.turn)
                                 this.endPhase(data);
                                 break;
                         }
-                    }
+
                 }
 
             },
@@ -797,6 +846,8 @@
                 }
             },
             async fetchCardData(id) {
+                if (!id)
+                    return 1;
                 if (!this.seenCards[id]) {
                     let promise = new Promise((resolve) => {
                         fb.cardsCollection.doc(id).get().then(function(doc) {
@@ -901,9 +952,7 @@
                         updateData = this.draw(1, data, updateData);
                     }
                     fb.roomsCollection.doc(this.hostplayer).update(updateData).then(function () {
-                        setTimeout(function () {
-                            thisComponent.communicating = false;
-                        }, 1000);
+                        thisComponent.communicating = false;
                     });
                 }
             },
@@ -918,7 +967,284 @@
                 data; // TODO remove if not needed
             },
             actionPhase(data) {
-                data; // TODO remove if not needed
+                if (!data.attackState.step)
+                    return;
+
+                switch (data.attackState.step) {
+                    case 2:
+                            if (data.players[this.thisPlayer.username].support == null) {
+                                // have yet to support
+                                let deck = data.players[this.thisPlayer.username].deck;
+                                let retreat = data.players[this.thisPlayer.username].retreat;
+                                let support = this._draw(deck);
+                                if (deck.length === 0) {
+                                    deck = retreat;
+                                    retreat = [];
+                                }
+                                let updateData = {};
+                                let prefix = 'players.' + this.thisPlayer.username + '.';
+                                updateData[prefix + 'deck'] = deck;
+                                updateData[prefix + 'retreat'] = retreat;
+                                updateData[prefix + 'support'] = support;
+                                fb.roomsCollection.doc(this.hostplayer).update(updateData);
+                                this.checkSupports(data);
+                            }
+
+                        break;
+                    case 4:
+                        // crit
+                        if (!this.turn)
+                            return;
+                        if (!this.communicating) {
+                            this.communicating = true;
+                            let attackerName;
+                            let attack = data.attackState.attack;
+                            let defenderName;
+                            let defense = data.attackState.defense;
+                            if (data.attackState.attackingFrom.localeCompare("f") === 0) {
+                                // attacking from frontline
+                                attackerName = data.players[this.thisPlayer.username].
+                                    frontLine[data.attackState.selectedAttacker].cards[0].name;
+                            } else {
+                                // attacking from backline
+                                attackerName = data.players[this.thisPlayer.username].
+                                    backLine[data.attackState.selectedAttacker].cards[0].name;
+                            }
+                            if (data.attackState.defendingFrom.localeCompare("f") === 0) {
+                                // defending from frontline
+                                defenderName = data.players[this.oppPlayer.username].
+                                    frontLine[data.attackState.selectedDefender].cards[0].name;
+                            } else {
+                                // defending from backline
+                                defenderName = data.players[this.oppPlayer.username].
+                                    backLine[data.attackState.selectedDefender].cards[0].name;
+                            }
+
+                            this.binaryoption.prompt = "Would you like to crit?\n" +
+                                "Attacker : " + attackerName + " (" + attack + ")\n" +
+                                "Defender : " + defenderName + " (" + defense + ")";
+                            let thisComponent = this;
+                            this.binaryoption.yes = function () {
+                                thisComponent.cardselect.message = 'Choose a card to discard to crit or confirm' +
+                                    ' without selecting a card to cancel';
+                                thisComponent.cardselect.max = 1;
+                                thisComponent.cardselect.min = 0;
+                                thisComponent.cardselect.numSelected = 0;
+                                thisComponent.cardselect.options = [];
+                                data.players[thisComponent.thisPlayer.username].hand.forEach(function (cardID) {
+                                    let option = JSON.parse(JSON.stringify(thisComponent.seenCards[cardID]));
+                                    option.id = cardID;
+                                    option.valid = option.name === attackerName;
+                                    option.selected = false;
+                                    thisComponent.cardselect.options.push(option);
+                                });
+                                thisComponent.cardselect.confirm = function (selectedCards) {
+                                    if (selectedCards.length === 0) {
+                                        thisComponent.binaryoption.no();
+                                    } else {
+                                        let retreat = data.players[thisComponent.thisPlayer.username].retreat;
+                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                        attack = 2 * attack;
+
+                                        // discard
+                                        for(let i = 0; i < hand.length; i++ ){
+                                            if(hand[i].localeCompare(selectedCards[0].id) === 0){
+                                                retreat.push(hand[i]);
+                                                hand.splice(i,1);
+                                                break;
+                                            }
+                                        }
+                                        let prefix = 'players.'+thisComponent.thisPlayer.username+'.';
+                                        let updateData = {
+                                            'attackState.attack': attack,
+                                            'attackState.step': 5
+                                        };
+                                        updateData[prefix+'hand'] = hand;
+                                        updateData[prefix+'retreat'] = retreat;
+
+                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                        thisComponent.communicating = false;
+                                    }
+                                };
+                                thisComponent.cardselect.active=true;
+                            };
+                            this.binaryoption.no = function() {
+                                let updateData = {
+                                    'attackState.step': 5
+                                };
+
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                thisComponent.communicating = false;
+                            };
+                            this.binaryoption.active = true;
+                        }
+                        break;
+                    case 5:
+                        // evade
+                        if (this.turn)
+                            return;
+                        if (!this.communicating) {
+                            this.communicating = true;
+                            let attackerName;
+                            let attack = data.attackState.attack;
+                            let defenderName;
+                            let defense = data.attackState.defense;
+                            if (data.attackState.attackingFrom.localeCompare("f") === 0) {
+                                // attacking from frontline
+                                attackerName = data.players[this.oppPlayer.username].frontLine[data.attackState.selectedAttacker].cards[0].name;
+                            } else {
+                                // attacking from backline
+                                attackerName = data.players[this.oppPlayer.username].backLine[data.attackState.selectedAttacker].cards[0].name;
+                            }
+                            if (data.attackState.defendingFrom.localeCompare("f") === 0) {
+                                // defending from frontline
+                                defenderName = data.players[this.thisPlayer.username].frontLine[data.attackState.selectedDefender].cards[0].name;
+                            } else {
+                                // defending from backline
+                                defenderName = data.players[this.thisPlayer.username].backLine[data.attackState.selectedDefender].cards[0].name;
+                            }
+
+                            this.binaryoption.prompt = "Would you like to evade?\n" +
+                                "Attacker : " + attackerName + " (" + attack + ")\n" +
+                                "Defender : " + defenderName + " (" + defense + ")";
+                            let thisComponent = this;
+                            this.binaryoption.yes = function () {
+                                thisComponent.cardselect.message = 'Choose a card to discard to evade or confirm' +
+                                    ' without selecting a card to cancel';
+                                thisComponent.cardselect.max = 1;
+                                thisComponent.cardselect.min = 0;
+                                thisComponent.cardselect.numSelected = 0;
+                                thisComponent.cardselect.options = [];
+                                data.players[thisComponent.thisPlayer.username].hand.forEach(function (cardID) {
+                                    let option = JSON.parse(JSON.stringify(thisComponent.seenCards[cardID]));
+                                    option.id = cardID;
+                                    option.valid = option.name === defenderName;
+                                    option.selected = false;
+                                    thisComponent.cardselect.options.push(option);
+                                });
+                                thisComponent.cardselect.confirm = function (selectedCards) {
+                                    if (selectedCards.length === 0) {
+                                        thisComponent.binaryoption.no();
+                                    } else {
+                                        let retreat = data.players[thisComponent.thisPlayer.username].retreat;
+                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
+                                        defense = -1;
+
+                                        // discard
+                                        for (let i = 0; i < hand.length; i++) {
+                                            if (hand[i].localeCompare(selectedCards[0].id) === 0) {
+                                                retreat.push(hand[i]);
+                                                hand.splice(i, 1);
+                                                break;
+                                            }
+                                        }
+                                        let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+                                        let updateData = {
+                                            'attackState.defense': defense,
+                                            'attackState.step': 6
+                                        };
+                                        updateData[prefix + 'hand'] = hand;
+                                        updateData[prefix + 'retreat'] = retreat;
+
+                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                        thisComponent.communicating = false;
+                                    }
+                                };
+                                thisComponent.cardselect.active = true;
+                            };
+                            this.binaryoption.no = function () {
+                                let updateData = {
+                                    'attackState.step': 6
+                                };
+
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+                                thisComponent.communicating = false;
+                            };
+                            this.binaryoption.active = true;
+                        }
+                        break;
+                    case 6:
+                        // result
+                        if (this.turn) {
+                            if (this.communicating)
+                                return;
+                            this.communicating = true;
+                            let attack = data.attackState.attack;
+                            let defense = data.attackState.defense;
+                            let updateData = {
+                                attackState: {
+                                    active: false,
+                                    attack: 0,
+                                    defense: 0,
+                                    canAttackFrontLine: false,
+                                    canAttackBackLine: false,
+                                    selectedAttacker: null,
+                                    attackingFrom: null,
+                                    selectedDefender: null,
+                                    defendingFrom: null,
+                                    step: -1
+                                }
+                            };
+                            let thisPrefix = 'players.' + this.thisPlayer.username + '.';
+                            let oppPrefix = 'players.' + this.oppPlayer.username + '.';
+                            let thisRetreat = data.players[this.thisPlayer.username].retreat;
+                            let oppRetreat = data.players[this.oppPlayer.username].retreat;
+                            let thisSupport = data.players[this.thisPlayer.username].support;
+                            let oppSupport = data.players[this.oppPlayer.username].support;
+                            thisRetreat.push(thisSupport);
+                            oppRetreat.push(oppSupport);
+                            if (defense < 0 || defense > attack) {
+                                // defender wins
+                            } else {
+                                // attacker wins
+                                let defendingLine = data.attackState.defendingFrom;
+                                let index = data.attackState.selectedDefender;
+                                let wasFrontLine;
+                                if (defendingLine === "f") {
+                                    defendingLine = data.players[this.oppPlayer.username].frontLine;
+                                    wasFrontLine = true;
+                                } else {
+                                    defendingLine = data.players[this.oppPlayer.username].backLine;
+                                    wasFrontLine = false;
+                                }
+                                let destroyedUnit = defendingLine[index];
+
+                                if (destroyedUnit.MC) {
+                                    let orbs = data.players[this.oppPlayer.username].orbs;
+                                    if (orbs.length === 0) {
+                                        alert("You Win!");
+                                    } else {
+                                        let hand = data.players[this.oppPlayer.username].hand;
+                                        hand.push(this._draw(orbs).cardID);
+
+                                        updateData[oppPrefix+'hand'] = hand;
+                                        updateData[oppPrefix+'orbs'] = orbs;
+                                    }
+                                } else {
+                                    for (let i = 0; i < destroyedUnit.cards.length; i++) {
+                                        oppRetreat.push(destroyedUnit.cards[i].id);
+                                    }
+                                    defendingLine.splice(index, 1);
+
+                                    if (wasFrontLine) {
+                                        updateData[oppPrefix+'frontLine'] = defendingLine;
+                                    } else {
+                                        updateData[oppPrefix+'backLine'] = defendingLine;
+                                    }
+                                }
+                            }
+
+                            updateData[oppPrefix+'retreat'] = oppRetreat;
+                            updateData[oppPrefix+'support'] = null;
+                            updateData[thisPrefix+'retreat'] = thisRetreat;
+                            updateData[thisPrefix+'support'] = null;
+
+                            fb.roomsCollection.doc(this.hostplayer).update(updateData);
+                            this.communicating = false;
+                        }
+                        break;
+                }
+
             },
             endPhase(data) {
                 let updateData = {
@@ -1094,7 +1420,12 @@
                 if (this.turn) {
                     switch (this.phase) {
                         case 3:
-                            this.showActionMenu(line, index);
+                            if ((line === this.thisPlayer.frontLine || line === this.thisPlayer.backLine)
+                                    && !this.attackState.active)
+                                this.showActionMenu(line, index);
+                            else if ((line === this.oppPlayer.frontLine || line === this.oppPlayer.backLine)
+                                    && this.attackState && this.attackState.step === 0)
+                                this.selectAttackTarget(line, index);
                             break;
                     }
                 }
@@ -1158,7 +1489,16 @@
                         options.push({
                             name: 'Attack',
                             onSelect: function () {
-                                // TODO : select target
+                                let updateData = {
+                                    "attackState.active": true,
+                                    "attackState.canAttackBackLine": canAttackBackLine,
+                                    "attackState.canAttackFrontLine": canAttackFrontLine,
+                                    "attackState.attackingFrom": (line === thisComponent.thisPlayer.backLine) ?
+                                        "b" : "f",
+                                    "attackState.selectedAttacker": index,
+                                    "attackState.step": 0
+                                };
+                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
                             }
                         })
                     }
@@ -1204,6 +1544,78 @@
                     thisComponent.optionmenu.prompt = 'What would you like to do with ' + unit.cards[0].name + ': ' +
                         unit.cards[0].title;
                 });
+            },
+            selectAttackTarget(line, index) {
+                this.attackState.defendingFrom = (line === this.oppPlayer.backLine) ?
+                    "b" : "f";
+                this.attackState.selectedDefender = index;
+
+                let attackState = JSON.parse(JSON.stringify(this.attackState));
+
+                attackState.step = 2; // support
+
+                let frontLine = this.thisPlayer.frontLine;
+                let backLine = this.thisPlayer.backLine;
+                let unit;
+
+                if (attackState.attackingFrom.localeCompare("f") === 0) {
+                    unit = frontLine[this.attackState.selectedAttacker];
+                    unit.tapped = true;
+                } else if (attackState.attackingFrom.localeCompare("b") === 0) {
+                    unit = backLine[this.attackState.selectedAttacker];
+                    unit.tapped = true;
+                } else  {
+                    alert("An error occurred, try again");
+                    return;
+                }
+
+                let updateData = {
+                    attackState: attackState
+                };
+                let prefix = 'players.' + this.thisPlayer.username + '.';
+                updateData[prefix+'frontLine'] = frontLine;
+                updateData[prefix+'backLine'] = backLine;
+
+                fb.roomsCollection.doc(this.hostplayer).update(updateData);
+
+            },
+            checkSupports(data) {
+                if (data.players[this.oppPlayer.username].support != null  &&
+                    data.players[this.thisPlayer.username].support != null && this.turn
+                    && this.seenCards[data.players[this.thisPlayer.username].support]
+                    && this.seenCards[data.players[this.oppPlayer.username].support]) {
+                    let attack;
+                    let defense;
+                    if (data.attackState.attackingFrom.localeCompare("f") === 0) {
+                        // attacking from frontline
+                        attack = data.players[this.thisPlayer.username].
+                            frontLine[data.attackState.selectedAttacker].cards[0].attack;
+                    } else {
+                        // attacking from backline
+                        attack = data.players[this.thisPlayer.username].
+                            backLine[data.attackState.selectedAttacker].cards[0].attack;
+                    }
+                    if (data.attackState.defendingFrom.localeCompare("f") === 0) {
+                        // defending from frontline
+                        defense = data.players[this.oppPlayer.username].
+                            frontLine[data.attackState.selectedDefender].cards[0].attack;
+                    } else {
+                        // attacking from backline
+                        defense = data.players[this.oppPlayer.username].
+                            backLine[data.attackState.selectedDefender].cards[0].attack;
+                    }
+                    attack += this.seenCards[data.players[this.thisPlayer.username].support].support;
+                    defense += this.seenCards[data.players[this.oppPlayer.username].support].support;
+
+                    let updateData = {};
+                    updateData['attackState.step'] = 4;
+                    updateData['attackState.attack'] = attack;
+                    updateData['attackState.defense'] = defense;
+                    fb.roomsCollection.doc(this.hostplayer).update(updateData);
+
+                } else {
+                    setTimeout(this.checkSupports, 500, data);
+                }
             },
             forcedMarch(data) {
                 let opponentData = data.players[this.oppPlayer.username];
