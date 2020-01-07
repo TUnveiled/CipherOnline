@@ -308,80 +308,81 @@
         components: {Supportcard, Cardstack, Facedownstack, Unit, Bondarea},
         data() {
             return {
-                infoCard: {},
-                hostplayer: '',
-                otherplayer: '',
-                host: false,
-                rps: false,
-                turn: false,
-                attackState: {
-                    active: false,
-                    attack: 0,
-                    defense: 0,
-                    canAttackFrontLine: false,
-                    canAttackBackLine: false,
-                    selectedAttacker: null,
-                    attackingFrom: null,
-                    selectedDefender: null,
-                    defendingFrom: null,
+                infoCard: {}, // card structure that's displayed on the left panel
+                hostplayer: '', // name of the host of the game
+                otherplayer: '', // name of the non-host player
+                host: false, // whether the player logged in is the host
+                rps: false, // whether the rps window is being displayed
+                turn: false, // whether it's currently the logged-in player's turn
+                attackState: { // struct for storing data about an attack
+                    active: false, // whether an attack is currently happening
+                    attack: 0, // attack power of the attacking player
+                    defense: 0, // attack power of the defending player
+                    canAttackFrontLine: false, // whether the unit attacking can attack the front line
+                    canAttackBackLine: false, // whether the unit attacking can attack the back line
+                    selectedAttacker: null, // the index of the unit attacking
+                    attackingFrom: null, // the line of the unit attacking
+                    selectedDefender: null, // the index of the unit being attacked
+                    defendingFrom: null, // the line of the unit being attacked
                     step: -1 // 0 : declaration, 1 : skills,  2 : supp, 3 : supp skills, 4 : crit, 5 : evade, 6 : result
                 },
-                mana: 0,
-                phase: -1,
-                communicating: false,
-                centermessage: '',
-                cardselect: {
-                    active: false,
-                    options: [],
-                    min: 0,
-                    max: 0,
-                    message: '',
-                    numSelected: 0,
-                    confirm: null
+                mana: 0, // remaining mana of the turn player
+                phase: -1, // the current phase of turn
+                communicating: false, // variable often (poorly) used for synchronization
+                centermessage: '', // message displayed in the center of the play area
+                cardselect: { // variables pertaining to the cardselect window
+                    active: false, // whether the window is visible
+                    options: [], // the cards that can be selected
+                    min: 0, // the minimum number of cards that need to be selected
+                    max: 0, // the max number of cards that can be selected
+                    message: '', // prompt for selection
+                    numSelected: 0, // the number of options currently selected
+                    confirm: null // the function that runs when the user completes their selection
                 },
-                binaryoption: {
-                    active: false,
-                    prompt: '',
-                    yes: null,
-                    no: null
+                binaryoption: { // variables pertaining to the binary option (yes/no) window
+                    active: false, // is the window visible?
+                    prompt: '', // what is the question?
+                    yes: null, // what function should run if the user selects "yes"
+                    no: null // what function should run if the user selects "no"
                 },
-                optionmenu: {
-                    active: false,
-                    prompt: '',
-                    options: [],
-                    select(index) {
-                        this.options[index].onSelect();
+                optionmenu: { // variables pertaining to the option menu (for a variable number of options)
+                    active: false, // is the window visible
+                    prompt: '', // what is the question?
+                    options: [], // array of objects {string name, function onSelect}
+                    select(index) { // function that runs
+                        this.options[index].onSelect(); // run the option's unique function
+                        // reset this object for the next time it's needed
                         this.active = false;
                         this.prompt = '';
                         this.options = [];
                     }
                 },
-                thisPlayer: {
-                    username: '',
-                    frontLine: [],
-                    backLine: [],
-                    support: null,
-                    deck: 0,
-                    retreat: [],
-                    boundless: [],
-                    orbs: 0,
-                    knownOrbs: [],
-                    bonds: [],
-                    hand: []
+                thisPlayer: { // variables pertaining to the logged in player's game state
+                    username: '', // username of the logged in player
+                    frontLine: [], // array of "Unit" objects representing the front line
+                    backLine: [], // array of "Unit" objects representing the back line
+                    support: null, // id of the current supporting card
+                    deck: 0, // number of cards in the deck
+                    retreat: [], // array of card IDs representing the retreat pile
+                    boundless: [], // not currently used
+                    orbs: 0, // number of orbs remaining
+                    knownOrbs: [], // number of orbs known to this player
+                    bonds: [], // array representing this player's bonds
+                    hand: [] // array representing this player's hand
                 },
-                seenCards: { },
-                oppPlayer: {
-                    username: '',
-                    frontLine: [],
-                    backLine: [],
-                    support: null,
-                    deck: 0,
-                    retreat: [],
-                    boundless: [],
-                    orbs: 0,
-                    knownOrbs: [],
-                    bonds: [],
-                    hand: []
+                seenCards: { }, // object mapping card IDs to card data
+                oppPlayer: { // variables pertaining to the opposition player's game state
+                    username: '', // username of the opposition player
+                    frontLine: [], // array of "Unit" objects representing the front line
+                    backLine: [], // array of "Unit" objects representing the back line
+                    support: null, // id of the current supporting card
+                    deck: 0, // number of cards in the deck
+                    retreat: [], // array of card IDs representing the retreat pile
+                    boundless: [], // not currently used
+                    orbs: 0, // number of orbs remaining
+                    knownOrbs: [], // number of orbs known to this player
+                    bonds: [], // array representing this player's bonds
+                    hand: [] // array representing this player's hand
                 }
             }
         },
@@ -390,12 +391,13 @@
         },
         methods: {
             rpsPick(option) {
+                // send the rock-paper-scissors option to the database
                 let updateData = {};
                 updateData["players." + this.thisPlayer.username + ".rps"] = option;
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
                 this.rps = false;
             },
-            update(data) {
+            update(data) { // called upon snapshot of room in database
                 if (data['currentTurn'] < 0) { // setup
 
                     // make changes to how the board is set up as it happens
@@ -430,10 +432,10 @@
                     if (data.players[this.oppPlayer.username].orbs)
                         this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
 
-                    // TODO change so you can't see opponent's MC during setup after testing
-                    if (this.oppPlayer.username) {
+                    if (this.oppPlayer.username) { // check if the opposition player's name is known yet
                         if (data.players[this.oppPlayer.username].frontLine)
                             this.oppPlayer.frontLine = [{
+                            // display a face-down card if the opponent has picked their MC
                                 cards: [{
                                     name: '?',
                                     title: '?',
@@ -451,7 +453,7 @@
                                 stack: 1
                             }];
                         else
-                            this.oppPlayer.frontLine = [];
+                            this.oppPlayer.frontLine = [] // otherwise don't
                     }
 
                     if (data.players[this.thisPlayer.username].rps == null) {
@@ -459,7 +461,7 @@
                         this.rps = true;
                     }
                     else if (data['hostFirst'] == null && this.host && data.players[this.otherplayer].rps != null) {
-                        // determine the winner of Rock Paper Scissors
+                        // determine the winner of Rock Paper Scissors, as host
                         let hostWin = null;
                         switch (data.players[this.hostplayer].rps) {
                             case 'r':
@@ -483,7 +485,7 @@
                         }
                         let updateData;
 
-                        // tie
+                        // tie, reset state so the players play again
                         if (hostWin === null) {
                             updateData = {};
                             updateData['players.' + this.hostplayer + '.rps'] = null;
@@ -511,6 +513,7 @@
                                 tapped: false
                             };
 
+                            // set up this player's state in the database
                             let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
                             let updateData;
                             updateData = {};
@@ -534,25 +537,28 @@
                                 let deck = [];
                                 delete cards['Preferred_MCs'];
 
+                                // Create the deck array
                                 cards[MC.cards[0].id]--;
                                 Object.keys(cards).forEach(function (nextCard) {
                                     for (let i=0; i < cards[nextCard]; i++)
                                         deck.push(nextCard);
                                 });
+                                // shuffle the deck
                                 thisComponent.shuffle(deck);
 
+                                // draw 6 cards
                                 let hand = [];
                                 for (let i = 0; i < 6; i++)
                                     hand.push(thisComponent._draw(deck));
 
+                                // update the database to reflect these changes
                                 let updateData = {};
                                 updateData[prefix + 'deck'] = deck;
                                 updateData[prefix + 'hand'] = hand;
                                 updateData[prefix + 'mulligan'] = false;
-
                                 fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
 
-                                // mulligan
+                                // mulligan (optional reshuffle and redraw)
                                 thisComponent.binaryoption.prompt = "would you like to mulligan?";
                                 thisComponent.binaryoption.yes = function() {
                                     fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
@@ -601,11 +607,13 @@
 
                             // get card data from database
                             Object.keys(cards).forEach(function (nextCard) {
+                                // grab the number of each card
                                 let num = cards[nextCard];
                                 if (nextCard.localeCompare('Preferred_MCs') !== 0) {
                                     fb.cardsCollection.doc(nextCard).get().then(function (cardDoc) {
                                         let cardID = cardDoc.id;
                                         let cardData = cardDoc.data();
+                                        // set up cardselect options for MC selection
                                         cardData['id'] = cardID;
                                         thisComponent.seenCards[cardID] = cardData;
                                         cardData['valid'] = cardData['cost'] === 1;
@@ -717,6 +725,7 @@
 
             },
             initialize() {
+                // wait for the system to fetch user data
                 if (!this.$store.state.userProfile.username) {
                     setTimeout(this.initialize, 100);
                     return;
@@ -725,6 +734,7 @@
                     setTimeout(this.initialize, 100);
                     return;
                 }
+                // initialize constants for this game
                 let thisComponent = this;
                 this.hostplayer = this.$router.currentRoute.params.id;
                 this.thisPlayer.username = this.$store.state.userProfile.username;
@@ -732,7 +742,6 @@
                     this.host = true;
 
                 fb.roomsCollection.doc(this.hostplayer).get().then(function(room) {
-
                     let roomData = room.data();
                     thisComponent.otherplayer = roomData['other'];
 
@@ -743,6 +752,7 @@
 
                 });
 
+                // set up system to update game as database is updated
                 fb.roomsCollection.doc(this.hostplayer).onSnapshot(function(room) {
                     if (!room.exists) {
                         alert("this game has ended");
@@ -763,7 +773,8 @@
 
                 });
             },
-            select(card) {
+            select(card) { // used for the cardselect window when a card is clicked
+                // TODO move to cardselect object
                 if (card['valid']) {
                     card['selected'] = !card['selected'];
                     if (card['selected'])
@@ -772,7 +783,8 @@
                         this.cardselect.numSelected--;
                 }
             },
-            confirmSelection() {
+            confirmSelection() { // function that runs when the user completes their selection
+                // TODO move to cardselect object
                 let results = this.cardselect.options.filter(function(card) {
                     return card.selected;
                 });
@@ -789,31 +801,11 @@
                     confirm: null
                 }
             },
-            deployUnit(card, source, dest, MC) {
-
-                let newUnit = {
-                    card: this.fetchCardData(card),
-                    MC: MC,
-                    stack: 1,
-                    tapped: false
-                };
-                let boardref = this.thisPlayer;
-                switch (source) {
-                    case boardref.deck:
-                        boardref.deck--;
-                        // TODO update deck in database
-                        break;
-                    case boardref.hand:
-                        // TODO update hand in database
-                        break;
-                }
-                dest.push(JSON.parse(JSON.stringify(newUnit)));
-                return newUnit;
-            },
             setInfoCard(infoCard) {
                 this.infoCard = infoCard;
             },
             shuffle(array) {
+                // TODO move this to somewhere more appropriate
                 var currentIndex = array.length, temporaryValue, randomIndex;
 
                 // While there remain elements to shuffle...
@@ -831,12 +823,13 @@
 
                 return array;
             },
-            _draw(array) {
+            _draw(array) { // alot like pop
                 let toReturn = array[0];
                 array.shift();
                 return toReturn;
             },
             draw(num, data, updateData) {
+                // NOTE : does not work with other updates regarding deck, hand and retreat
                 let deck = data.players[this.thisPlayer.username].deck;
                 let retreat = data.players[this.thisPlayer.username].retreat;
                 let hand = data.players[this.thisPlayer.username].hand;
@@ -856,7 +849,7 @@
                 updateData[prefix + 'retreat'] = retreat;
                 return updateData;
             },
-            async createUnit(id) {
+            async createUnit(id) { // constructor for unit object
                 let promise = new Promise((resolve) => {
                     resolve(this.fetchCardData(id));
                 });
@@ -868,6 +861,7 @@
                 }
             },
             async fetchCardData(id) {
+                //  gets card data from database if it isn't already stored
                 if (!id)
                     return 1;
                 if (!this.seenCards[id]) {
@@ -883,14 +877,18 @@
                 return this.seenCards[id];
             },
             binaryYes() {
+                // binary option yes function
+                // TODO move to binaryoption
                 this.binaryoption.active = false;
                 this.binaryoption.yes();
             },
             binaryNo() {
+                // binary option no function
+                // TODO move to binaryoption
                 this.binaryoption.active = false;
                 this.binaryoption.no();
             },
-            addOrbs(num, known, faceUp) {
+            addOrbs(num, known, faceUp) { // TODO flesh out comments starting here
                 let thisComponent = this;
                 fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
                     let data = doc.data();

@@ -1,8 +1,9 @@
 <template>
     <div>
         <div v-if="dataref" id="bonddiv">
-        <img v-if="dataref.length > 0" :src="(dataref[0].flipped) ? 'src/assets/cardback.png' : dataref[0].imageref"
-             alt="" class="baseBond">
+            <img v-if="dataref.length > 0" :src="(dataref[0].flipped) ? 'src/assets/cardback.png' : dataref[0].imageref"
+                 alt="" class="baseBond">
+            <img v-for="(ref, index) in dataref" :src="(ref.flipped) ? 'src/assets/cardback.png' : ref.imageref" :key="index">
             <!-- TODO: display additional bonds -->
         </div>
     </div>
