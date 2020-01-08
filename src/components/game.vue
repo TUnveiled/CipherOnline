@@ -129,7 +129,7 @@
                     <td rowspan="2"> <!-- Opponent's Bond Area -->
                         <a v-if="!oppPlayer.bonds">Bonds</a>
                         <a v-else-if="oppPlayer.bonds.length === 0">Bonds</a>
-                        <bondarea v-else :dataref="oppPlayer.bonds"></bondarea>
+                        <bondarea v-else :dataref="oppPlayer.bonds" @hover="setInfoCard"></bondarea>
                     </td>
                 </tr>
                 <tr>
@@ -137,6 +137,7 @@
                         <facedownstack title="Deck" :count="oppPlayer.deck"></facedownstack>
                     </td>
                     <td> <!-- Opponent's Front Line -->
+                        <div v-if="oppPlayer">
                         <div v-if="oppPlayer.frontLine">
                             <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
                                 <td style="width: 50%;"></td>
@@ -150,6 +151,8 @@
                                 </td>
                                 <td style="width: 50%;"></td>
                             </tr></tbody></table>
+                            <a v-else>Front Line</a>
+                        </div>
                             <a v-else>Front Line</a>
                         </div>
                         <a v-else>Front Line</a>
@@ -212,6 +215,7 @@
                         <facedownstack title="Orbs" :count="thisPlayer.orbs"></facedownstack>
                     </td>
                     <td style="width:75%"> <!-- Your Front Line -->
+                        <div v-if="thisPlayer">
                         <div v-if="thisPlayer.frontLine">
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
@@ -225,7 +229,7 @@
                             <td style="width:50%;"></td>
                         </tr></tbody></table>
                         <a v-else>Front Line</a>
-                        </div>
+                        </div></div>
                     </td>
                     <td> <!-- Your Deck -->
                         <facedownstack title="Deck" :count="thisPlayer.deck"></facedownstack>
@@ -234,7 +238,7 @@
                         <!-- Your Bond Area -->
                         <a v-if="!thisPlayer.bonds">Bonds</a>
                         <a v-else-if="thisPlayer.bonds.length === 0">Bonds</a>
-                        <bondarea v-else :dataref="thisPlayer.bonds"></bondarea>
+                        <bondarea v-else :dataref="thisPlayer.bonds" @hover="setInfoCard"></bondarea>
                     </td>
                 </tr>
                 <tr>
@@ -662,15 +666,19 @@
                     }
 
                     // update the opposing player's gameboard
-                    this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
-                    this.oppPlayer.backLine = data.players[this.oppPlayer.username].backLine;
-                    this.oppPlayer.support = data.players[this.oppPlayer.username].support;
-                    this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
-                    this.oppPlayer.retreat = data.players[this.oppPlayer.username].retreat;
-                    this.oppPlayer.boundless = data.players[this.oppPlayer.username].boundless;
-                    this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
-                    this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
-                    this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+                    if (data.players[this.oppPlayer.username]) {
+                        this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+                        this.oppPlayer.backLine = data.players[this.oppPlayer.username].backLine;
+                        this.oppPlayer.support = data.players[this.oppPlayer.username].support;
+                        this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
+                        this.oppPlayer.retreat = data.players[this.oppPlayer.username].retreat;
+                        this.oppPlayer.boundless = data.players[this.oppPlayer.username].boundless;
+                        this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
+                        this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
+                        this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+                    } else {
+                        setTimeout(this.update, 300, data);
+                    }
 
 
                     // update known orbs
@@ -691,7 +699,7 @@
                     this.turn = !!((a ^ b) ^ c);
 
 
-                        if (this.oppPlayer.frontLine.length === 0)
+                        if (this.oppPlayer.frontLine.length === 0 && data.players[this.oppPlayer.username])
                             this.forcedMarch(data);
 
                         switch (data.currentPhase) {
@@ -802,7 +810,14 @@
                 }
             },
             setInfoCard(infoCard) {
-                this.infoCard = infoCard;
+                if (typeof infoCard === "string") {
+                    if (this.seenCards[infoCard])
+                        this.infoCard = this.seenCards[infoCard];
+                    else
+                        this.fetchCardData(infoCard);
+                }
+                else
+                    this.infoCard = infoCard;
             },
             shuffle(array) {
                 // TODO move this to somewhere more appropriate
@@ -1407,9 +1422,9 @@
                                     let updateData = {};
                                     let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
 
-                                    updateData[prefix +'hand'] = hand;
-                                    updateData[prefix+'backLine'] = backLine;
-                                    updateData[prefix+'mana'] = mana - cardData['cost'];
+                                    updateData[prefix + 'hand'] = hand;
+                                    updateData[prefix + 'backLine'] = backLine;
+                                    updateData[prefix + 'mana'] = mana - cardData['cost'];
 
 
                                     fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
@@ -1583,7 +1598,6 @@
                         options.push({
                             name: 'Move',
                             onSelect: function () {
-                                // TODO : tap and change lines
                                 let frontLine = thisComponent.thisPlayer.frontLine;
                                 let backLine = thisComponent.thisPlayer.backLine;
                                 let unit;
@@ -1750,7 +1764,7 @@
             'info hand';
         grid-auto-columns: 312px auto;
         grid-gap: 4px;
-        background: darkslategrey;
+        background: black;
         padding : 2px;
     }
 

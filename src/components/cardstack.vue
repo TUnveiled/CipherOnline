@@ -1,7 +1,7 @@
 <template>
     <div class="cardstack">
         <div v-if="title" class="title">{{title}}</div>
-        <img v-if="count > 0" class="image" :src="imageref" alt="">
+        <img v-if="count > 0" class="image" :src="imageref" alt="" style="opacity: 1;">
         <img v-else class="image" src="https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png" alt="">
         <div class="count">{{count}}</div>
     </div>
