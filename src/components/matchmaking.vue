@@ -51,7 +51,6 @@
     import Userbar from "@/components/userbar";
     // eslint-disable-next-line no-unused-vars
     const fb = require('../firebaseConfig.js');
-    const url = 'ws://127.0.0.1:4969';
 
     export default {
         name: "matchmaking",
@@ -87,31 +86,29 @@
                 });
         },
         methods: {
-            startHosting() {
-                const serverConnection = new WebSocket(url);
-
-                serverConnection.onopen = () => {
-                    let roomName = this.gamename;
-                    if (!roomName)
-                        roomName = this.$store.state.userProfile.username + '\'s Game';
-
-                    let roomMessage = {
-                        type: "New Room",
-                        contents:{
-                            host: this.$store.state.userProfile.username,
-                            name: roomName
-                        }
-                    }
-                    serverConnection.send(JSON.stringify(roomMessage))
+            async checkConnection(generateMessage){
+                let serverConnection = this.$store.state.connection;
+                if (serverConnection.readyState === 0) {
+                    serverConnection.onopen = generateMessage;
+                } else if (serverConnection.readyState === 1) {
+                    generateMessage()
+                } else if (serverConnection.readyState > 1) {
+                    let store = this.$store;
+                    const connectionPromise = new Promise(function (resolve) {
+                        this.$store.dispatch('resetConnection');
+                        resolve();
+                    });
+                    await connectionPromise;
+                    serverConnection = store.state.connection;
+                    serverConnection.onopen = generateMessage;
                 }
-
                 serverConnection.onerror = error => {
                     alert(`WebSocket error: ${error}`)      //TODO change to console
-                }
+                };
 
                 // start hosting a game
                 serverConnection.onmessage = response => {
-                    response = JSON.parse(response.data)
+                    response = JSON.parse(response.data);
 
                     switch (response.type) {
 
@@ -122,8 +119,32 @@
                         case "error":
                             alert('Firebase error: ' + response.contents.errorMessage);
                             break;
+
+                        case "full":
+                            alert(response.contents.errorMessage);
+                            break;
                     }
                 }
+            },
+            startHosting() {
+                let serverConnection = this.$store.state.connection;
+                let matchmaking = this;
+
+                function foo() {
+                    let roomName = matchmaking.gamename;
+                    if (!roomName)
+                        roomName = matchmaking.$store.state.userProfile.username + '\'s Game';
+
+                    let roomMessage = {
+                        type: "New Room",
+                        contents: {
+                            host: matchmaking.$store.state.userProfile.username,
+                            name: roomName
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(roomMessage))
+                }
+                this.checkConnection(foo);
             },
             alreadyHosting() {
                 // check if already hosting
@@ -151,25 +172,19 @@
 
             },
             join(host) {
-                let router = this.$router;
-                let thisComponent = this;
-
-                // check to see if the room is available
-                fb.roomsCollection.doc(host).get().then(function(doc) {
-                    // if the room doesn't have a 2 users
-                    if (doc.data().other.localeCompare("") === 0) {
-                        // add this user to the room in the database
-                        fb.roomsCollection.doc(host).update({
-                            other: thisComponent.$store.state.userProfile.username
-                        }).then(function() {
-                            // redirect this user to the room page
-                            router.push('/room/'+host);
-                        });
-                    } else {
-                        alert("This game is full");
+                let name = this.$store.state.userProfile.username;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let joinMessage = {
+                        type: "Join Room",
+                        contents:{
+                            host: host,
+                            name: name,
+                        }
                     }
-                });
-
+                    serverConnection.send(JSON.stringify(joinMessage));
+                }
+                this.checkConnection(foo);
             }
         },
         components: {

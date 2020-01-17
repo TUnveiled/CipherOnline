@@ -1,13 +1,15 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 const fb = require('./firebaseConfig.js')
+const url = 'ws://127.0.0.1:4969';
 
 Vue.use(Vuex);
 
 export const store = new Vuex.Store({
     state: {
         currentUser: null,
-        userProfile: {}
+        userProfile: {},
+        connection: new WebSocket(url)
     },
     actions: {
         clearData({commit}) {
@@ -21,6 +23,9 @@ export const store = new Vuex.Store({
             }).catch(err => {
                // TODO error handling
             })
+        },
+        resetConnection({commit}){
+            commit('setConnection', new WebSocket(url));
         }
     },
     mutations: {
@@ -29,6 +34,9 @@ export const store = new Vuex.Store({
         },
         setUserProfile(state, val) {
             state.userProfile = val
+        },
+        setConnection(state, val){
+            state.connection = val
         }
     }
 });
