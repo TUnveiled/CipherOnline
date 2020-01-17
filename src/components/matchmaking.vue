@@ -51,6 +51,7 @@
     import Userbar from "@/components/userbar";
     // eslint-disable-next-line no-unused-vars
     const fb = require('../firebaseConfig.js');
+    const url = 'ws://127.0.0.1:4969';
 
     export default {
         name: "matchmaking",
@@ -67,7 +68,7 @@
             //let query = fb.roomsCollection;
             let thisComponent = this;
 
-            // dynamically update page to reflect changes in database
+            // dynamically update page to reflect changes in database -- Keep Client side
             fb.roomsCollection
                 .onSnapshot(function(result) {
                     // empty the table
@@ -87,25 +88,42 @@
         },
         methods: {
             startHosting() {
-                // start hosting a game
-                let roomName = this.gamename;
-                if (!roomName)
-                    roomName = this.$store.state.userProfile.username + '\'s Game';
+                const serverConnection = new WebSocket(url);
 
-                // add the new room to the database
-                fb.roomsCollection.doc(this.$store.state.userProfile.username).set({
-                    host: this.$store.state.userProfile.username,
-                    other: "",
-                    name: roomName,
-                    inprogress: false,
-                    hostReady: false,
-                    otherReady: false
-                }).then(() => {
-                    // route to the new room
-                    this.$router.push('/room/'+this.$store.state.userProfile.username);
-                }).catch(err => {
-                    this.response = err;
-                })
+                serverConnection.onopen = () => {
+                    let roomName = this.gamename;
+                    if (!roomName)
+                        roomName = this.$store.state.userProfile.username + '\'s Game';
+
+                    let roomMessage = {
+                        type: "New Room",
+                        contents:{
+                            host: this.$store.state.userProfile.username,
+                            name: roomName
+                        }
+                    }
+                    serverConnection.send(JSON.stringify(roomMessage))
+                }
+
+                serverConnection.onerror = error => {
+                    alert(`WebSocket error: ${error}`)      //TODO change to console
+                }
+
+                // start hosting a game
+                serverConnection.onmessage = response => {
+                    response = JSON.parse(response.data)
+
+                    switch (response.type) {
+
+                        case "route":
+                            this.$router.push(response.contents.destination);
+                            break;
+
+                        case "error":
+                            alert('Firebase error: ' + response.contents.errorMessage);
+                            break;
+                    }
+                }
             },
             alreadyHosting() {
                 // check if already hosting

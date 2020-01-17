@@ -11,6 +11,7 @@ import register from './components/register'
 import matchmaking from '@/components/matchmaking'
 import room from '@/components/room'
 import game from '@/components/game';
+import account from './components/account'
 
 Vue.use(VueRouter);
 
@@ -59,6 +60,12 @@ const router = new VueRouter({
             path: '/game/:id',
             name: 'game',
             component: game,
+            meta: {requiresAuth: true}
+        },
+        {
+            path: '/account',
+            name: 'account',
+            component: account,
             meta: {requiresAuth: true}
         }
     ]
