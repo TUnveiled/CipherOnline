@@ -38,10 +38,11 @@ app.listen(3000, () => {
 });
 
 //WebSocket Testing
+import Room from "game_classes/room"
 const fb = require('./firebaseConfig.js');
 const WebSocket = require('ws');
-
 const wss = new WebSocket.Server({ port: 4969 });
+let games = [];
 
 wss.on('connection', ws => {
     ws.on('message', message => {
@@ -51,6 +52,8 @@ wss.on('connection', ws => {
         switch (message.type) {
 
             case "New Room": // add the new room to the database
+                games.push(new Room(message.contents.host, message.contents.name, ws));
+                // TODO : remove
                 fb.roomsCollection.doc(message.contents.host).set({
                     host: message.contents.host,
                     other: "",
@@ -65,7 +68,7 @@ wss.on('connection', ws => {
                         contents:{
                             destination: '/room/' + message.contents.host
                         }
-                    }
+                    };
                     // route to the new room
                     ws.send(JSON.stringify(routeResponse));
                 }).catch(err => {
@@ -78,7 +81,7 @@ wss.on('connection', ws => {
                     }
                     //error message
                     ws.send(JSON.stringify(errorResponse));
-                })
+                });
                 break;
 
             case "Join Room":
