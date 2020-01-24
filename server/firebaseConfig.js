@@ -26,7 +26,7 @@ admin.initializeApp({
 // // Initialize Firebase
 // firebase.initializeApp(firebaseConfig);
 const db = admin.firestore();
-// const auth = admin.auth();
+const auth = admin.auth();
 // const currentUser = auth.currentUser;
 
 // firebase collections
@@ -39,7 +39,7 @@ exports.usersCollection = usersCollection;
 exports.roomsCollection = roomsCollection;
 exports.cardsCollection = cardsCollection;
 exports.publicCollection = publicCollection;
-    // auth,
+exports.auth = auth;
     // currentUser,
 
 

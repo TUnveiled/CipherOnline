@@ -65,29 +65,33 @@
             this.alreadyHosting();
 
             //let query = fb.roomsCollection;
-            let thisComponent = this;
+            // let thisComponent = this;
 
             // dynamically update page to reflect changes in database -- Keep Client side
-            fb.roomsCollection
-                .onSnapshot(function(result) {
-                    // empty the table
-                    thisComponent.jointabledata = [];
-                    // refill the table with new data
-                    result.forEach(function(doc) {
-                        let data = doc.data();
-                        let nextElement = {
-                            "name": data.name,
-                            "host": data.host,
-                            "Full?": ((data.other.localeCompare('') === 0) ? 'No' : 'Yes'),
-                            "Join": data.host
-                        };
-                        thisComponent.jointabledata.push(nextElement);
-                    });
-                });
+            this.getRoomsFromServer();
+
+            // TODO : remove
+            // fb.roomsCollection
+            //     .onSnapshot(function(result) {
+            //         // empty the table
+            //         thisComponent.jointabledata = [];
+            //         // refill the table with new data
+            //         result.forEach(function(doc) {
+            //             let data = doc.data();
+            //             let nextElement = {
+            //                 "name": data.name,
+            //                 "host": data.host,
+            //                 "Full?": ((data.other.localeCompare('') === 0) ? 'No' : 'Yes'),
+            //                 "Join": data.host
+            //             };
+            //             thisComponent.jointabledata.push(nextElement);
+            //         });
+            //     });
         },
         methods: {
             async checkConnection(generateMessage){
                 let serverConnection = this.$store.state.connection;
+                const matchmaking = this;
                 if (serverConnection.readyState === 0) {
                     serverConnection.onopen = generateMessage;
                 } else if (serverConnection.readyState === 1) {
@@ -95,7 +99,7 @@
                 } else if (serverConnection.readyState > 1) {
                     let store = this.$store;
                     const connectionPromise = new Promise(function (resolve) {
-                        this.$store.dispatch('resetConnection');
+                        store.dispatch('resetConnection');
                         resolve();
                     });
                     await connectionPromise;
@@ -105,7 +109,6 @@
                 serverConnection.onerror = error => {
                     alert(`WebSocket error: ${error}`)      //TODO change to console
                 };
-
                 // start hosting a game
                 serverConnection.onmessage = response => {
                     response = JSON.parse(response.data);
@@ -123,6 +126,9 @@
                         case "full":
                             alert(response.contents.errorMessage);
                             break;
+
+                        case "rooms":
+                            matchmaking.updateRoomTable(response.contents);
                     }
                 }
             },
@@ -138,7 +144,7 @@
                     let roomMessage = {
                         type: "New Room",
                         contents: {
-                            host: matchmaking.$store.state.userProfile.username,
+                            token: matchmaking.$store.state.token,
                             name: roomName
                         }
                     };
@@ -172,19 +178,45 @@
 
             },
             join(host) {
-                let name = this.$store.state.userProfile.username;
+                let token = this.$store.state.token;
                 let serverConnection = this.$store.state.connection;
                 function foo() {
                     let joinMessage = {
                         type: "Join Room",
                         contents:{
                             host: host,
-                            name: name,
+                            token: token,
                         }
-                    }
+                    };
                     serverConnection.send(JSON.stringify(joinMessage));
                 }
                 this.checkConnection(foo);
+            },
+            getRoomsFromServer() {
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "Get Rooms",
+                        contents: {}
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+                this.checkConnection(foo);
+            },
+            updateRoomTable(contents) {
+                const matchmaking = this;
+                matchmaking.jointabledata = [];
+                contents.forEach(function(data) {
+                    matchmaking.jointabledata.push({
+                        "name": data.rname,
+                        "host": data.host,
+                        "Full?": data.full,
+                        "Join": data.host
+                    });
+                });
+                // TODO : check if this component is active
+                setTimeout(this.getRoomsFromServer, 10000);
             }
         },
         components: {

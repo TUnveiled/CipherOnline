@@ -9,6 +9,7 @@ export const store = new Vuex.Store({
     state: {
         currentUser: null,
         userProfile: {},
+        token: null,
         connection: new WebSocket(url)
     },
     actions: {
@@ -19,9 +20,17 @@ export const store = new Vuex.Store({
         fetchUserProfile({commit, state}) {
             fb.usersCollection.doc(state.currentUser.uid).get().then(result => {
                 commit('setUserProfile', result.data())
-                // eslint-disable-next-line no-unused-vars
             }).catch(err => {
-               // TODO error handling
+               err;// TODO error handling
+            });
+            state.currentUser.getIdToken(true).then(idToken => {
+                commit('setToken', idToken);
+                state.connection.send(JSON.stringify({
+                    type: "FB Tok",
+                    contents: {
+                        token: idToken
+                    }
+                }));
             })
         },
         resetConnection({commit}){
@@ -30,13 +39,16 @@ export const store = new Vuex.Store({
     },
     mutations: {
         setCurrentUser(state, val) {
-            state.currentUser = val
+            state.currentUser = val;
         },
         setUserProfile(state, val) {
-            state.userProfile = val
+            state.userProfile = val;
         },
-        setConnection(state, val){
-            state.connection = val
+        setConnection(state, val) {
+            state.connection = val;
+        },
+        setToken(state, val) {
+            state.token = val;
         }
     }
 });

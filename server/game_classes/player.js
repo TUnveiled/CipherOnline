@@ -7,3 +7,5 @@ class Player {
         this.isHost = isHost;
     }
 }
+
+exports.Player = Player;
