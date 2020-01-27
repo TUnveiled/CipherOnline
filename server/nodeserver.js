@@ -48,15 +48,17 @@ const fb = require('./firebaseConfig.js');
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 4969 });
 let rooms = [];
-let tokens = {
-    user: "token"
+
+// two objects to reduce complexity
+let tokensToUsers = {
+};
+let usersToTokens = {
 };
 
 
 wss.on('connection', ws => {
-
     ws.on('message', message => {
-        console.log(`${message}`)
+        console.log(`${message}`);
         message = JSON.parse(message);
 
         switch (message.type) {
@@ -64,7 +66,17 @@ wss.on('connection', ws => {
             case "FB Tok":
                 fb.auth.verifyIdToken(message.contents.token).then(decodedToken => {
                     fb.usersCollection.doc(decodedToken.uid).get().then(document => {
-                        tokens[message.contents.token] = document.data().username;
+
+                        let username = document.data().username;
+
+                        // Remove old token
+                        if (usersToTokens[username])
+                            delete tokensToUsers[usersToTokens[username]];
+
+                        // add new token
+                        tokensToUsers[message.contents.token] = username;
+                        usersToTokens[username] = message.contents.token;
+
                     });
                     // TODO : maybe send back ack idk
                 }).catch(error => {
@@ -74,7 +86,7 @@ wss.on('connection', ws => {
                 break;
 
             case "New Room": // add the new room to the database
-                let host = tokens[message.contents.token];
+                let host = tokensToUsers[message.contents.token];
                 if (!host) break;
                 rooms.push(new Room(host, message.contents.name, ws));
                 // TODO : remove
@@ -102,7 +114,7 @@ wss.on('connection', ws => {
                         contents:{
                             errorMessage: err
                         }
-                    }
+                    };
                     //error message
                     ws.send(JSON.stringify(errorResponse));
                 });
@@ -115,7 +127,7 @@ wss.on('connection', ws => {
                 })[0];
 
                 // add them to the room on this end
-                let uname = tokens[message.contents.token];
+                let uname = tokensToUsers[message.contents.token];
                 let success = roomToJoin.addPlayer(uname, ws);
 
                 // route them
@@ -165,7 +177,7 @@ wss.on('connection', ws => {
                             contents:{
                                 errorMessage: "The Room is Full."
                             }
-                        }
+                        };
                         //error message
                         ws.send(JSON.stringify(fullResponse));
                     }
@@ -195,4 +207,4 @@ wss.on('connection', ws => {
 
         console.log(`Received message => ${message}`)
     })
-}, true)
+}, true);

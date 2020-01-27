@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-const fb = require('./firebaseConfig.js')
+const fb = require('./firebaseConfig.js');
 const url = 'ws://127.0.0.1:4969';
 
 Vue.use(Vuex);
@@ -21,7 +21,7 @@ export const store = new Vuex.Store({
             fb.usersCollection.doc(state.currentUser.uid).get().then(result => {
                 commit('setUserProfile', result.data())
             }).catch(err => {
-               err;// TODO error handling
+               alert(err.toString());// TODO error handling
             });
             state.currentUser.getIdToken(true).then(idToken => {
                 commit('setToken', idToken);

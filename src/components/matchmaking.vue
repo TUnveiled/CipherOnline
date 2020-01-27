@@ -49,6 +49,7 @@
 
 <script>
     import Userbar from "@/components/userbar";
+    const pf = require("../publicFunctions.js");
     // eslint-disable-next-line no-unused-vars
     const fb = require('../firebaseConfig.js');
 
@@ -89,49 +90,6 @@
             //     });
         },
         methods: {
-            async checkConnection(generateMessage){
-                let serverConnection = this.$store.state.connection;
-                const matchmaking = this;
-                if (serverConnection.readyState === 0) {
-                    serverConnection.onopen = generateMessage;
-                } else if (serverConnection.readyState === 1) {
-                    generateMessage()
-                } else if (serverConnection.readyState > 1) {
-                    let store = this.$store;
-                    const connectionPromise = new Promise(function (resolve) {
-                        store.dispatch('resetConnection');
-                        resolve();
-                    });
-                    await connectionPromise;
-                    serverConnection = store.state.connection;
-                    serverConnection.onopen = generateMessage;
-                }
-                serverConnection.onerror = error => {
-                    alert(`WebSocket error: ${error}`)      //TODO change to console
-                };
-                // start hosting a game
-                serverConnection.onmessage = response => {
-                    response = JSON.parse(response.data);
-
-                    switch (response.type) {
-
-                        case "route":
-                            this.$router.push(response.contents.destination);
-                            break;
-
-                        case "error":
-                            alert('Firebase error: ' + response.contents.errorMessage);
-                            break;
-
-                        case "full":
-                            alert(response.contents.errorMessage);
-                            break;
-
-                        case "rooms":
-                            matchmaking.updateRoomTable(response.contents);
-                    }
-                }
-            },
             startHosting() {
                 let serverConnection = this.$store.state.connection;
                 let matchmaking = this;
@@ -150,7 +108,7 @@
                     };
                     serverConnection.send(JSON.stringify(roomMessage))
                 }
-                this.checkConnection(foo);
+                pf.checkConnection(foo, this);
             },
             alreadyHosting() {
                 // check if already hosting
@@ -162,6 +120,7 @@
 
                 // Redirect the user if they have a room already
                 // Use recursion and timeouts to account for delays in fetching the user profile after a refresh
+                // TODO : update to new server architecture
                 setTimeout(function() {
                     if (store) {
                         if (username) {
@@ -190,7 +149,7 @@
                     };
                     serverConnection.send(JSON.stringify(joinMessage));
                 }
-                this.checkConnection(foo);
+                pf.checkConnection(foo, this);
             },
             getRoomsFromServer() {
                 let serverConnection = this.$store.state.connection;
@@ -202,7 +161,7 @@
 
                     serverConnection.send(JSON.stringify(message));
                 }
-                this.checkConnection(foo);
+                pf.checkConnection(foo, this);
             },
             updateRoomTable(contents) {
                 const matchmaking = this;
@@ -216,7 +175,7 @@
                     });
                 });
                 // TODO : check if this component is active
-                setTimeout(this.getRoomsFromServer, 10000);
+                setTimeout(this.getRoomsFromServer, 5000);
             }
         },
         components: {

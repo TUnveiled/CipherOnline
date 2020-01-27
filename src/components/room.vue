@@ -29,6 +29,8 @@
             let router = this.$router;
             let roomC = this;
 
+            this.getDataFromServer();
+
             // Get the information from the database about the room
             fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
                 //if the room doesnt exist, kick the user
@@ -89,6 +91,7 @@
                 // update database to show that the other player is empty
                 // The other player will be redirected to matchmaking by the same system
                 // that authorizes players
+                
                 fb.roomsCollection.doc(this.hostplayer).update({
                     other: '',
                     otherReady: false
@@ -140,6 +143,9 @@
                 } else
                     temp = {otherReady: this.ready};
                 fb.roomsCollection.doc(this.hostplayer).update(temp);
+            },
+            getDataFromServer() {
+
             }
         },
         components: {
