@@ -1,9 +1,24 @@
 async function checkConnection(generateMessage, activeComponent) {
     let serverConnection = activeComponent.$store.state.connection;
+    serverConnection.onclose = function () {
+        setTimeout(checkConnection, 100, function() {
+            if (activeComponent.$store.state.token) {
+                let message = {
+                    type: "NewCon",
+                    contents: {
+                        token: activeComponent.$store.state.token
+                    }
+                };
+
+                serverConnection.send(JSON.stringify(message));
+            }
+
+        }, activeComponent);
+    };
     if (serverConnection.readyState === 0) {
         serverConnection.onopen = generateMessage;
     } else if (serverConnection.readyState === 1) {
-        generateMessage()
+        generateMessage();
     } else if (serverConnection.readyState > 1) {
         let store = activeComponent.$store;
         const connectionPromise = new Promise(function (resolve) {
@@ -15,8 +30,9 @@ async function checkConnection(generateMessage, activeComponent) {
         serverConnection.onopen = generateMessage;
     }
     serverConnection.onerror = error => {
-        alert(`WebSocket error: ${error}`)      //TODO change to console
+        alert(`WebSocket error: ${error.toString()}`)      //TODO change to console
     };
+
     // start hosting a game
     serverConnection.onmessage = response => {
         response = JSON.parse(response.data);
@@ -38,6 +54,12 @@ async function checkConnection(generateMessage, activeComponent) {
             case "rooms":
                 if (activeComponent.updateRoomTable)
                     activeComponent.updateRoomTable(response.contents);
+                break;
+
+            case "RoomData":
+                if (activeComponent.updateRoom)
+                    activeComponent.updateRoom(response.contents);
+                break;
         }
     }
 }

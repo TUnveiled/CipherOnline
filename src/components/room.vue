@@ -17,6 +17,7 @@
 
 <script>
     const fb = require('../firebaseConfig.js');
+    const pf = require('../publicFunctions.js');
     import Userbar from '../components/userbar'
     export default {
         name: "room",
@@ -25,54 +26,50 @@
             this.hostplayer = this.$router.currentRoute.params.id;
             this.host = this.hostplayer.localeCompare(this.$store.state.userProfile.username) === 0;
 
-            // temp variables because of how the "this" keyword works
-            let router = this.$router;
-            let roomC = this;
-
             this.getDataFromServer();
 
             // Get the information from the database about the room
-            fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
-                //if the room doesnt exist, kick the user
-                if (!doc.exists) {
-                    alert("room has been closed");
-                    router.push('/matchmaking');
-                } else {
-                    // synchronize local data with server data
-                    roomC.otherplayer = doc.data().other;
-                    roomC.otherReady = doc.data().otherReady;
-                    roomC.hostReady = doc.data().hostReady;
-                    roomC.roomName=doc.data().name;
-
-                    // If this user is unauthorized to be in this room, kick them
-                    if (roomC.otherplayer !== roomC.$store.state.userProfile.username
-                        && roomC.hostplayer !== roomC.$store.state.userProfile.username)
-                        router.push('/matchmaking');
-
-                    // Dynamically update page to match changes to the database
-                    fb.roomsCollection.doc(roomC.hostplayer)
-                        .onSnapshot(function(doc) {
-                            // if the room exists both locally and remotely, update the local version
-                            if (roomC && doc.exists) {
-                                roomC.otherplayer = doc.data().other;
-                                roomC.otherReady = doc.data().otherReady;
-                                roomC.hostReady = doc.data().hostReady;
-                                // kick unauthorized users
-                                if (roomC.otherplayer !== roomC.$store.state.userProfile.username
-                                    && roomC.hostplayer !== roomC.$store.state.userProfile.username)
-                                    router.push('/matchmaking');
-                                // TODO redirect players to game if inprogress
-                                if (doc.data().inprogress)
-                                    router.push('/game/' + roomC.hostplayer)
-                            } else {
-                                // if the room doesn't exist locally and remotely, kick the user
-                                alert("This room doesn't exist");
-                                router.push('/matchmaking');
-                            }
-                        });
-                }
-
-            })
+            // fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
+            //     //if the room doesnt exist, kick the user
+            //     if (!doc.exists) {
+            //         alert("room has been closed");
+            //         router.push('/matchmaking');
+            //     } else {
+            //         // synchronize local data with server data
+            //         roomC.otherplayer = doc.data().other;
+            //         roomC.otherReady = doc.data().otherReady;
+            //         roomC.hostReady = doc.data().hostReady;
+            //         roomC.roomName=doc.data().name;
+            //
+            //         // If this user is unauthorized to be in this room, kick them
+            //         if (roomC.otherplayer !== roomC.$store.state.userProfile.username
+            //             && roomC.hostplayer !== roomC.$store.state.userProfile.username)
+            //             router.push('/matchmaking');
+            //
+            //         // Dynamically update page to match changes to the database
+            //         fb.roomsCollection.doc(roomC.hostplayer)
+            //             .onSnapshot(function(doc) {
+            //                 // if the room exists both locally and remotely, update the local version
+            //                 if (roomC && doc.exists) {
+            //                     roomC.otherplayer = doc.data().other;
+            //                     roomC.otherReady = doc.data().otherReady;
+            //                     roomC.hostReady = doc.data().hostReady;
+            //                     // kick unauthorized users
+            //                     if (roomC.otherplayer !== roomC.$store.state.userProfile.username
+            //                         && roomC.hostplayer !== roomC.$store.state.userProfile.username)
+            //                         router.push('/matchmaking');
+            //                     // TODO redirect players to game if inprogress
+            //                     if (doc.data().inprogress)
+            //                         router.push('/game/' + roomC.hostplayer)
+            //                 } else {
+            //                     // if the room doesn't exist locally and remotely, kick the user
+            //                     alert("This room doesn't exist");
+            //                     router.push('/matchmaking');
+            //                 }
+            //             });
+            //     }
+            //
+            // })
         },
 
         data() {
@@ -91,7 +88,20 @@
                 // update database to show that the other player is empty
                 // The other player will be redirected to matchmaking by the same system
                 // that authorizes players
-                
+                let serverConnection = this.$store.state.connection;
+                let token = this.$store.state.token;
+                function foo() {
+                        let message = {
+                            type: "Kick",
+                            contents: {token: token}
+                        };
+
+                        serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+
+                // TODO remove
                 fb.roomsCollection.doc(this.hostplayer).update({
                     other: '',
                     otherReady: false
@@ -135,17 +145,53 @@
             toggleReady() {
                 // toggle ready locally
                 this.ready = !this.ready;
+                let serverConnection = this.$store.state.connection;
+                let room = this;
+                function foo() {
+                    let message = {
+                        type: "ToggleReady",
+                        contents: {token: room.$store.state.token}
+                    };
 
-                // toggle ready remotely
-                let temp;
-                if (this.host) {
-                    temp = {hostReady: this.ready};
-                } else
-                    temp = {otherReady: this.ready};
-                fb.roomsCollection.doc(this.hostplayer).update(temp);
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+
+                // // toggle ready remotely
+                // let temp;
+                // if (this.host) {
+                //     temp = {hostReady: this.ready};
+                // } else
+                //     temp = {otherReady: this.ready};
+                // fb.roomsCollection.doc(this.hostplayer).update(temp);
             },
             getDataFromServer() {
+                let serverConnection = this.$store.state.connection;
+                let token = this.$store.state.token;
+                function foo() {
+                    let message = {
+                        type: "GetRoomData",
+                        contents: {token: token}
+                    };
 
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+
+            },
+            updateRoom(contents) {
+                if (contents.hasOwnProperty("hostReady"))
+                    this.hostReady = contents.hostReady;
+                if (contents.hasOwnProperty("otherReady"))
+                    this.otherReady = contents.otherReady;
+                if (contents.hasOwnProperty("roomName"))
+                    this.roomName = contents.roomName;
+                if (contents.hasOwnProperty("otherplayer"))
+                    this.otherplayer = contents.otherplayer;
+
+                this.ready = this.host ? this.hostReady : this.otherReady;
             }
         },
         components: {

@@ -43,7 +43,6 @@ app.listen(3000, () => {
 //WebSocket Testing
 // eslint-disable-next-line no-unused-vars
 let Room = require("./game_classes/room").Room;
-console.log(Room);
 const fb = require('./firebaseConfig.js');
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 4969 });
@@ -54,12 +53,18 @@ let tokensToUsers = {
 };
 let usersToTokens = {
 };
+let usersToSockets = {
+};
 
 
 wss.on('connection', ws => {
+    ws.on('close', function() {
+        console.log("lost connection");
+    });
     ws.on('message', message => {
         console.log(`${message}`);
         message = JSON.parse(message);
+        let response, user, room, host;
 
         switch (message.type) {
 
@@ -76,6 +81,7 @@ wss.on('connection', ws => {
                         // add new token
                         tokensToUsers[message.contents.token] = username;
                         usersToTokens[username] = message.contents.token;
+                        usersToSockets[username] = ws;
 
                     });
                     // TODO : maybe send back ack idk
@@ -85,8 +91,13 @@ wss.on('connection', ws => {
 
                 break;
 
+            case "NewCon":
+                usersToSockets[tokensToUsers[message.contents.token]] = ws;
+                // TODO : fix to check rooms for users
+                break;
+
             case "New Room": // add the new room to the database
-                let host = tokensToUsers[message.contents.token];
+                host = tokensToUsers[message.contents.token];
                 if (!host) break;
                 rooms.push(new Room(host, message.contents.name, ws));
                 // TODO : remove
@@ -97,27 +108,16 @@ wss.on('connection', ws => {
                     inprogress: false,
                     hostReady: false,
                     otherReady: false
-                }).then(() => {
-
-                    let routeResponse = {
-                        type: "route",
-                        contents:{
-                            destination: '/room/' + host
-                        }
-                    };
-                    // route to the new room
-                    ws.send(JSON.stringify(routeResponse));
-                }).catch(err => {
-
-                    let errorResponse = {
-                        type: "error",
-                        contents:{
-                            errorMessage: err
-                        }
-                    };
-                    //error message
-                    ws.send(JSON.stringify(errorResponse));
                 });
+
+                let routeResponse = {
+                    type: "route",
+                    contents: {
+                        destination: '/room/' + host
+                    }
+                };
+                // route to the new room
+                ws.send(JSON.stringify(routeResponse));
                 break;
 
             case "Join Room":
@@ -139,7 +139,21 @@ wss.on('connection', ws => {
                         }
                     };
                     ws.send(JSON.stringify(routeResponse));
+
+                    // tell the host
+                    let hostResponse = {
+                        type: "RoomData",
+                        contents: {
+                            otherplayer: uname
+                        }
+                    };
+
+                    console.log(uname);
+                    console.log(message.contents.host);
+                    roomToJoin.players[0].socket.send(JSON.stringify(hostResponse));
                 }
+
+
 
                 // TODO : remove
                 // check to see if the room is available
@@ -187,7 +201,7 @@ wss.on('connection', ws => {
 
             case "Get Rooms":
 
-                let response = {
+                response = {
                     type: "rooms",
                     contents: []
                 };
@@ -201,6 +215,77 @@ wss.on('connection', ws => {
                 });
 
                 ws.send(JSON.stringify(response));
+
+                break;
+
+            case "Kick":
+                let kickedPlayer = rooms.filter(room => {
+                    return room.hostedBy(tokensToUsers[message.contents.token]);
+                })[0].kick();
+
+                response = {
+                    type: "RoomData",
+                    contents: {
+                        otherplayer: "",  // name of non-host
+                        otherReady: false
+                    }
+                };
+                ws.send(JSON.stringify(response));
+
+                response = {
+                    type: "route",
+                    contents: {
+                        destination: '/matchmaking'
+                    }
+                };
+
+                kickedPlayer.socket.send(JSON.stringify(response));
+
+                break;
+
+            case "GetRoomData":
+                user = tokensToUsers[message.contents.token];
+                room = rooms.filter(room => {
+                    return room.containsUser(user);
+                })[0];
+
+                response = {
+                    type: "RoomData",
+                    contents: {
+                        otherplayer: room.getOtherName(),  // name of non-host
+                        roomName: room.name,     // name of room
+                        hostReady: room.isReady(0), // is the host ready?
+                        otherReady: room.isReady(1)// is the non-host ready?
+                    }
+                };
+
+                ws.send(JSON.stringify(response));
+
+                break;
+
+            case "ToggleReady":
+                user = tokensToUsers[message.contents.token];
+                room = rooms.filter(room => {
+                    return room.containsUser(user);
+                })[0];
+
+                host = room.hostedBy(user);
+
+                if (host)
+                    room.readyPlayer(0);
+                else
+                    room.readyPlayer(1);
+
+                response = {
+                    type: "RoomData",
+                    contents: {
+                        hostReady: room.isReady(0),
+                        otherReady: room.isReady(1)
+                    }
+                };
+
+                room.players[0].socket.send(JSON.stringify(response));
+                room.players[1].socket.send(JSON.stringify(response));
 
                 break;
         }

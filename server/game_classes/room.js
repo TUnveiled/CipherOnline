@@ -15,12 +15,36 @@ class Room {
         }
     }
 
+    isReady(num) {
+        if (this.players[num])
+            return this.players[num].isReady;
+        else
+            return false;
+    }
+
+    kick() {
+        let temp = this.players[1];
+        this.players[1] = null;
+
+        return temp;
+    }
+
     isFull() {
         return this.players[1] == null;
     }
 
     getHostName() {
-        return this.players[0].name;
+        if (this.players[0])
+            return this.players[0].name;
+        else
+            return "";
+    }
+
+    getOtherName() {
+        if (this.players[1])
+            return this.players[1].name;
+        else
+            return "";
     }
 
     changeSocket(name, newSocket) {
@@ -31,6 +55,14 @@ class Room {
 
     hostedBy(name) {
         return this.players[0].name === name;
+    }
+
+    readyPlayer(num) {
+        this.players[num].isReady = !this.players[num].isReady;
+    }
+
+    containsUser(name) {
+        return this.getOtherName() === name || this.hostedBy(name);
     }
 }
 exports.Room = Room;

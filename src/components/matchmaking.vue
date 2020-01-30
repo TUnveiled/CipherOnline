@@ -99,6 +99,11 @@
                     if (!roomName)
                         roomName = matchmaking.$store.state.userProfile.username + '\'s Game';
 
+                    if (!matchmaking.$store.state.token || !matchmaking.$store.state.userProfile.username) {
+                        setTimeout(foo, 1000);
+                        return;
+                    }
+
                     let roomMessage = {
                         type: "New Room",
                         contents: {
@@ -106,6 +111,7 @@
                             name: roomName
                         }
                     };
+
                     serverConnection.send(JSON.stringify(roomMessage))
                 }
                 pf.checkConnection(foo, this);
@@ -137,6 +143,10 @@
 
             },
             join(host) {
+                if (!this.$store.state.token || !this.$store.state.userProfile.username) {
+                    setTimeout(this.join, 1000, host);
+                    return;
+                }
                 let token = this.$store.state.token;
                 let serverConnection = this.$store.state.connection;
                 function foo() {
@@ -161,7 +171,9 @@
 
                     serverConnection.send(JSON.stringify(message));
                 }
-                pf.checkConnection(foo, this);
+                if (this.$router.currentRoute.path.includes("matchmaking"))
+                    pf.checkConnection(foo, this);
+
             },
             updateRoomTable(contents) {
                 const matchmaking = this;

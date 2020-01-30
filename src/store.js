@@ -24,16 +24,16 @@ export const store = new Vuex.Store({
                alert(err.toString());// TODO error handling
             });
             state.currentUser.getIdToken(true).then(idToken => {
-                commit('setToken', idToken);
-                state.connection.send(JSON.stringify({
-                    type: "FB Tok",
-                    contents: {
-                        token: idToken
-                    }
+                    commit('setToken', idToken);
+                    state.connection.send(JSON.stringify({
+                        type: "FB Tok",
+                        contents: {
+                            token: idToken
+                        }
                 }));
             })
         },
-        resetConnection({commit}){
+        resetConnection({commit}) {
             commit('setConnection', new WebSocket(url));
         }
     },

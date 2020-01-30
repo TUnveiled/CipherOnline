@@ -5,6 +5,7 @@ class Player {
         this.name = name;
         this.socket = socket;
         this.isHost = isHost;
+        this.isReady = false;
     }
 }
 
