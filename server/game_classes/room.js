@@ -1,9 +1,13 @@
 var Player = require('./player').Player;
 // eslint-disable-next-line no-unused-vars
 class Room {
-    constructor(host, name, hostSocket) {
+    constructor(host, name, hostSocket, activeCards) {
         this.name = name;
-        this.players = [new Player(host, hostSocket, true), null];
+        this.players = [new Player(host, hostSocket, true, this), null];
+        this.inProgress = false;
+        this.currentTurn = -1;
+        this.currentPhase = -1;
+        this.activeCards = activeCards;
     }
 
     addPlayer(name, socket) {
@@ -20,6 +24,10 @@ class Room {
             return this.players[num].isReady;
         else
             return false;
+    }
+
+    bothReady(){
+        return this.isReady(1) && this.isReady(0);
     }
 
     kick() {
@@ -64,5 +72,16 @@ class Room {
     containsUser(name) {
         return this.getOtherName() === name || this.hostedBy(name);
     }
+
+    startGame(fb){
+        this.inProgress = true;
+
+        this.players[0].initializeDeck(fb, this.activeCards);
+        this.players[1].initializeDeck(fb, this.activeCards);
+
+
+    }
+
+
 }
 exports.Room = Room;

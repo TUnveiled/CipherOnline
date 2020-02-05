@@ -107,7 +107,20 @@
                     otherReady: false
                 });
             },
+            // TODO Socket
             deleteRoom() {
+                let serverConnection = this.$store.state.connection;
+                let room = this;
+                function foo() {
+                    let message = {
+                        type: "deleteRoom",
+                        contents: {token: room.$store.state.token}
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+                pf.checkConnection(foo, this);
+
+                // TODO Remove
                 let router = this.$router;
                 // delete the room in the database then redirect the host player to matchmaking
                 // other player will be redirected by the dynamic system in mounted()
@@ -116,16 +129,34 @@
                 });
             },
             leaveRoom() {
-                let router = this.$router;
-                // same as kick except now the user is redirected on their own terms
-                fb.roomsCollection.doc(this.hostplayer).update({
-                    other: '',
-                    otherReady: false
-                }).then(function() {
-                    router.push("/matchmaking");
-                });
+                let serverConnection = this.$store.state.connection;
+                let room = this;
+                function foo() {
+                    let message = {
+                        type: "LeaveRoom",
+                        contents: {token: room.$store.state.token}
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+                pf.checkConnection(foo, this);
+
             },
+            // TODO Socket
             startGame() {
+
+                let serverConnection = this.$store.state.connection;
+                let room = this;
+                function foo() {
+                    let message = {
+                        type: "startGame",
+                        contents: {token: room.$store.state.token}
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+                pf.checkConnection(foo, this);
+
+                //TODO remove
                 let players = {};
                 players[this.hostplayer] = {
                     rps: null,
