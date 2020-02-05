@@ -4,7 +4,7 @@
             <tr>
                 <td>
                     <h4 style="float: left;" v-if="username"> Logged in as {{username}}</h4>
-                    <h4 style="float: left;" v-else v-on:mousemove="updatebar"> Logged in</h4>
+                    <h4 style="float: left;" v-else> Logged in</h4>
                 </td>
                 <td>
                     <button id="logoutbtn" v-on:click="logout">Log Out</button>
@@ -25,6 +25,9 @@
                 username: this.$store.state.userProfile.username
             };
         },
+        mounted() {
+            this.updatebar();
+        },
         methods: {
             logout() {
                 fb.auth.signOut().then(() => {
@@ -39,6 +42,8 @@
             },
             updatebar() {
                 this.username = this.$store.state.userProfile.username;
+                if (!this.username)
+                    setTimeout(this.updatebar, 100);
             }
         }
     }
