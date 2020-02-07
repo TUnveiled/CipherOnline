@@ -306,6 +306,7 @@
     import Bondarea from "@/components/bondarea"
     import Supportcard from "@/components/supportcard";
     const fb = require('../firebaseConfig');
+    const pf = require("../publicFunctions.js");
 
     export default {
         name: "game.vue",
@@ -316,6 +317,7 @@
                 hostplayer: '', // name of the host of the game
                 otherplayer: '', // name of the non-host player
                 host: false, // whether the player logged in is the host
+                first: null,
                 rps: false, // whether the rps window is being displayed
                 turn: false, // whether it's currently the logged-in player's turn
                 attackState: { // struct for storing data about an attack
@@ -395,346 +397,359 @@
         },
         methods: {
             rpsPick(option) {
-                // send the rock-paper-scissors option to the database
-                let updateData = {};
-                updateData["players." + this.thisPlayer.username + ".rps"] = option;
-                fb.roomsCollection.doc(this.hostplayer).update(updateData);
-                this.rps = false;
-            },
-            update(data) { // called upon snapshot of room in database
-                if (data['currentTurn'] < 0) { // setup
 
-                    // make changes to how the board is set up as it happens
-                    this.otherplayer = data['other'];
-                    if (data.players[this.thisPlayer.username].frontLine)
-                        this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
-                    else
-                        this.thisPlayer.frontLine = [];
-
-                    if (data.players[this.thisPlayer.username].hand)
-                        this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
-                    else
-                        this.thisPlayer.hand = [];
-
-                    if (data.players[this.thisPlayer.username].deck)
-                        this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
-                    else
-                        this.thisPlayer.deck = 0;
-
-                    if (data.players[this.oppPlayer.username].deck)
-                        this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
-                    else
-                        this.oppPlayer.deck = 0;
-
-                    if (data.players[this.oppPlayer.username].hand)
-                        this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
-                    else
-                        this.oppPlayer.hand = 0;
-
-                    if (data.players[this.thisPlayer.username].orbs)
-                        this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
-                    if (data.players[this.oppPlayer.username].orbs)
-                        this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
-
-                    if (this.oppPlayer.username) { // check if the opposition player's name is known yet
-                        if (data.players[this.oppPlayer.username].frontLine)
-                            this.oppPlayer.frontLine = [{
-                            // display a face-down card if the opponent has picked their MC
-                                cards: [{
-                                    name: '?',
-                                    title: '?',
-                                    cost: 1,
-                                    attack: '?',
-                                    support: '?',
-                                    range: '?',
-                                    symbol: '?',
-                                    quote: '',
-                                    affinities: [],
-                                    imageref: "https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png"
-                                }],
-                                MC: true,
-                                tapped: false,
-                                stack: 1
-                            }];
-                        else
-                            this.oppPlayer.frontLine = [] // otherwise don't
-                    }
-
-                    if (data.players[this.thisPlayer.username].rps == null) {
-                        // display Rock Paper Scissors
-                        this.rps = true;
-                    }
-                    else if (data['hostFirst'] == null && this.host && data.players[this.otherplayer].rps != null) {
-                        // determine the winner of Rock Paper Scissors, as host
-                        let hostWin = null;
-                        switch (data.players[this.hostplayer].rps) {
-                            case 'r':
-                                if (data.players[this.otherplayer].rps === 'p')
-                                    hostWin = false;
-                                else if (data.players[this.otherplayer].rps === 's')
-                                    hostWin = true;
-                                break;
-                            case 'p':
-                                if (data.players[this.otherplayer].rps === 'r')
-                                    hostWin = true;
-                                else if (data.players[this.otherplayer].rps === 's')
-                                    hostWin = false;
-                                break;
-                            case 's':
-                                if (data.players[this.otherplayer].rps === 'p')
-                                    hostWin = true;
-                                else if (data.players[this.otherplayer].rps === 'r')
-                                    hostWin = false;
-                                break;
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "rps",
+                        contents: {
+                            token: token,
+                            choice: option
                         }
-                        let updateData;
+                    };
 
-                        // tie, reset state so the players play again
-                        if (hostWin === null) {
-                            updateData = {};
-                            updateData['players.' + this.hostplayer + '.rps'] = null;
-                            updateData['players.' + this.otherplayer + '.rps'] = null;
-                        }
-                        else // someone won
-                            updateData = {hostFirst: hostWin};
-
-                        fb.roomsCollection.doc(this.hostplayer).update(updateData);
-                    }
-                    else
-                    if (data.players[this.$store.state.userProfile.username].MC === null
-                        && !this.cardselect.active && data.hostFirst != null) {
-                        // display pick MC box
-                        this.cardselect.active = true;
-                        this.cardselect.max = 1;
-                        this.cardselect.min = 1;
-                        this.cardselect.message = 'Select your MC';
-                        let thisComponent = this;
-                        // function to set MC
-                        this.cardselect.confirm = function(selectedCards) {
-                            let MC = {
-                                cards: [selectedCards[0]],
-                                MC: true,
-                                tapped: false
-                            };
-
-                            // set up this player's state in the database
-                            let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                            let updateData;
-                            updateData = {};
-                            updateData[prefix + 'MC'] = MC.cards[0].name;
-                            updateData[prefix + 'frontLine'] = [MC];
-                            updateData[prefix + 'backLine'] = [];
-                            updateData[prefix + 'support'] = null;
-                            updateData[prefix + 'deck'] = [];
-                            updateData[prefix + 'retreat'] = [];
-                            updateData[prefix + 'boundless'] = [];
-                            updateData[prefix + 'orbs'] = [];
-                            updateData[prefix + 'bonds'] = [];
-                            updateData[prefix + 'hand'] = [];
-                            updateData['attackState'] = thisComponent.attackState;
-
-                            fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-
-                            // set up deck:
-                            fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
-                                let cards = doc.data();
-                                let deck = [];
-                                delete cards['Preferred_MCs'];
-
-                                // Create the deck array
-                                cards[MC.cards[0].id]--;
-                                Object.keys(cards).forEach(function (nextCard) {
-                                    for (let i=0; i < cards[nextCard]; i++)
-                                        deck.push(nextCard);
-                                });
-                                // shuffle the deck
-                                thisComponent.shuffle(deck);
-
-                                // draw 6 cards
-                                let hand = [];
-                                for (let i = 0; i < 6; i++)
-                                    hand.push(thisComponent._draw(deck));
-
-                                // update the database to reflect these changes
-                                let updateData = {};
-                                updateData[prefix + 'deck'] = deck;
-                                updateData[prefix + 'hand'] = hand;
-                                updateData[prefix + 'mulligan'] = false;
-                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-
-                                // mulligan (optional reshuffle and redraw)
-                                thisComponent.binaryoption.prompt = "would you like to mulligan?";
-                                thisComponent.binaryoption.yes = function() {
-                                    fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
-                                        let data = doc.data();
-                                        let deck = data.players[thisComponent.thisPlayer.username].deck;
-
-                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                        deck = deck.concat(hand);
-
-                                        hand = [];
-                                        thisComponent.shuffle(deck);
-                                        for (let i = 0; i < 6; i++)
-                                            hand.push(thisComponent._draw(deck));
-
-                                        let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                                        let updateData;
-                                        updateData = {};
-
-                                        updateData[prefix + 'deck'] = deck;
-                                        updateData[prefix + 'hand'] = hand;
-                                        updateData[prefix + 'mulligan'] = true;
-
-                                        // TODO check mulligan property for security
-                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                        thisComponent.addOrbs(5, false, false);
-                                    });
-                                };
-                                thisComponent.binaryoption.no = (function() {
-                                    let updateData = {};
-                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                                    updateData[prefix + 'mulligan'] = true;
-
-                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-
-                                    thisComponent.addOrbs(5, false, false);
-                                });
-                                thisComponent.binaryoption.active = true;
-                            });
-
-                        };
-
-                        // get deck from database
-                        fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
-                            let cards = doc.data();
-                            thisComponent.deck = cards.length - 1;
-
-                            // get card data from database
-                            Object.keys(cards).forEach(function (nextCard) {
-                                // grab the number of each card
-                                let num = cards[nextCard];
-                                if (nextCard.localeCompare('Preferred_MCs') !== 0) {
-                                    fb.cardsCollection.doc(nextCard).get().then(function (cardDoc) {
-                                        let cardID = cardDoc.id;
-                                        let cardData = cardDoc.data();
-                                        // set up cardselect options for MC selection
-                                        cardData['id'] = cardID;
-                                        thisComponent.seenCards[cardID] = cardData;
-                                        cardData['valid'] = cardData['cost'] === 1;
-                                        cardData['selected'] = false;
-                                        // TODO implement preferred MCs
-                                        for (let i = 0; i < num; i++) {
-                                            let instanceData = JSON.parse(JSON.stringify(cardData));
-                                            instanceData['count'] = i;
-                                            thisComponent.cardselect.options.push(instanceData);
-                                        }
-                                    });
-                                }
-
-
-                            });
-
-                        });
-                    } else if (this.host && data.players[this.otherplayer].orbs.length > 0
-                                && data.players[this.hostplayer].orbs.length > 0) {
-                        // ready to start the game
-                        this.startGame();
-                    }
-                } else {
-                    // game has begun
-
-                    // update this player's gameboard
-                    this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
-                    this.thisPlayer.backLine = data.players[this.thisPlayer.username].backLine;
-                    this.thisPlayer.support = data.players[this.thisPlayer.username].support;
-                    this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
-                    this.thisPlayer.retreat = data.players[this.thisPlayer.username].retreat;
-                    this.thisPlayer.boundless = data.players[this.thisPlayer.username].boundless;
-                    this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
-                    this.thisPlayer.bonds = data.players[this.thisPlayer.username].bonds;
-                    this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
-                    this.attackState = data.attackState;
-                    if (data.players[this.thisPlayer.username].mana)
-                        this.mana = data.players[this.thisPlayer.username].mana;
-
-                    // update known orbs
-                    this.thisPlayer.knownOrbs = [];
-                    for (let i = 0; i < this.thisPlayer.orbs; i++) {
-                        let currentOrb = data.players[this.thisPlayer.username].orbs[i];
-                        if (currentOrb['known'])
-                            this.thisPlayer.knownOrbs.push(currentOrb);
-                    }
-
-                    // update the opposing player's gameboard
-                    if (data.players[this.oppPlayer.username]) {
-                        this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
-                        this.oppPlayer.backLine = data.players[this.oppPlayer.username].backLine;
-                        this.oppPlayer.support = data.players[this.oppPlayer.username].support;
-                        this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
-                        this.oppPlayer.retreat = data.players[this.oppPlayer.username].retreat;
-                        this.oppPlayer.boundless = data.players[this.oppPlayer.username].boundless;
-                        this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
-                        this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
-                        this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
-                    } else {
-                        setTimeout(this.update, 300, data);
-                    }
-
-
-                    // update known orbs
-                    this.oppPlayer.knownOrbs = [];
-                    for (let i = 0; i < this.oppPlayer.orbs; i++) {
-                        let currentOrb = data.players[this.oppPlayer.username].orbs[i];
-                        if (currentOrb['faceUp'])
-                            this.oppPlayer.knownOrbs.push(currentOrb);
-                    }
-
-                    // grab non-player-specific info
-                    this.phase = data.currentPhase;
-
-                    // determine whose turn it is based on turn number and who went first
-                    let a = (data.hostFirst) ? 1 : 0;
-                    let b = (this.host) ? 1 : 0;
-                    let c = data.currentTurn % 2;
-                    this.turn = !!((a ^ b) ^ c);
-
-
-                        if (this.oppPlayer.frontLine.length === 0 && data.players[this.oppPlayer.username])
-                            this.forcedMarch(data);
-
-                        switch (data.currentPhase) {
-                            case 0:
-                                // beginning phase
-                                if (this.turn)
-                                this.beginningPhase(data);
-                                break;
-                            case 1:
-                                // bond phase
-                                if (this.turn)
-                                this.bondPhase(data);
-                                break;
-                            case 2:
-                                // deploy phase
-                                if (this.turn)
-                                this.deployPhase(data);
-                                break;
-                            case 3:
-                                // action phase
-                                this.actionPhase(data);
-                                break;
-                            case 4:
-                                // end phase
-                                if (this.turn)
-                                this.endPhase(data);
-                                break;
-                        }
-
+                    serverConnection.send(JSON.stringify(message));
                 }
 
+                pf.checkConnection(foo, this);
+                this.rps = false;
             },
+            // update(data) { // called upon snapshot of room in database
+            //
+            //
+            //     if (data['currentTurn'] < 0) { // setup
+            //         // make changes to how the board is set up as it happens
+            //         this.otherplayer = data['other'];
+            //         if (data.players[this.thisPlayer.username].frontLine)
+            //             this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
+            //         else
+            //             this.thisPlayer.frontLine = [];
+            //
+            //         if (data.players[this.thisPlayer.username].hand)
+            //             this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
+            //         else
+            //             this.thisPlayer.hand = [];
+            //
+            //         if (data.players[this.thisPlayer.username].deck)
+            //             this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
+            //         else
+            //             this.thisPlayer.deck = 0;
+            //
+            //         if (data.players[this.oppPlayer.username].deck)
+            //             this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
+            //         else
+            //             this.oppPlayer.deck = 0;
+            //
+            //         if (data.players[this.oppPlayer.username].hand)
+            //             this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+            //         else
+            //             this.oppPlayer.hand = 0;
+            //
+            //         if (data.players[this.thisPlayer.username].orbs)
+            //             this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
+            //         if (data.players[this.oppPlayer.username].orbs)
+            //             this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
+            //
+            //         if (this.oppPlayer.username) { // check if the opposition player's name is known yet
+            //             if (data.players[this.oppPlayer.username].frontLine)
+            //                 this.oppPlayer.frontLine = [{
+            //                 // display a face-down card if the opponent has picked their MC
+            //                     cards: [{
+            //                         name: '?',
+            //                         title: '?',
+            //                         cost: 1,
+            //                         attack: '?',
+            //                         support: '?',
+            //                         range: '?',
+            //                         symbol: '?',
+            //                         quote: '',
+            //                         affinities: [],
+            //                         imageref: "https://serenesforest.net/wiki/images/a/a7/PlaceHolder.png"
+            //                     }],
+            //                     MC: true,
+            //                     tapped: false,
+            //                     stack: 1
+            //                 }];
+            //             else
+            //                 this.oppPlayer.frontLine = [] // otherwise don't
+            //         }
+            //
+            //         if (data.players[this.thisPlayer.username].rps == null) {
+            //             // display Rock Paper Scissors
+            //             this.rps = true;
+            //         }
+            //         else if (data['hostFirst'] == null && this.host && data.players[this.otherplayer].rps != null) {
+            //             // determine the winner of Rock Paper Scissors, as host
+            //             let hostWin = null;
+            //             switch (data.players[this.hostplayer].rps) {
+            //                 case 'r':
+            //                     if (data.players[this.otherplayer].rps === 'p')
+            //                         hostWin = false;
+            //                     else if (data.players[this.otherplayer].rps === 's')
+            //                         hostWin = true;
+            //                     break;
+            //                 case 'p':
+            //                     if (data.players[this.otherplayer].rps === 'r')
+            //                         hostWin = true;
+            //                     else if (data.players[this.otherplayer].rps === 's')
+            //                         hostWin = false;
+            //                     break;
+            //                 case 's':
+            //                     if (data.players[this.otherplayer].rps === 'p')
+            //                         hostWin = true;
+            //                     else if (data.players[this.otherplayer].rps === 'r')
+            //                         hostWin = false;
+            //                     break;
+            //             }
+            //             let updateData;
+            //
+            //             // tie, reset state so the players play again
+            //             if (hostWin === null) {
+            //                 updateData = {};
+            //                 updateData['players.' + this.hostplayer + '.rps'] = null;
+            //                 updateData['players.' + this.otherplayer + '.rps'] = null;
+            //             }
+            //             else // someone won
+            //                 updateData = {hostFirst: hostWin};
+            //
+            //             fb.roomsCollection.doc(this.hostplayer).update(updateData);
+            //         }
+            //         else
+            //         if (data.players[this.$store.state.userProfile.username].MC === null
+            //             && !this.cardselect.active && data.hostFirst != null) {
+            //             // display pick MC box
+            //             this.cardselect.active = true;
+            //             this.cardselect.max = 1;
+            //             this.cardselect.min = 1;
+            //             this.cardselect.message = 'Select your MC';
+            //             let thisComponent = this;
+            //             // function to set MC
+            //             this.cardselect.confirm = function(selectedCards) {
+            //                 let MC = {
+            //                     cards: [selectedCards[0]],
+            //                     MC: true,
+            //                     tapped: false
+            //                 };
+            //
+            //                 // set up this player's state in the database
+            //                 let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+            //                 let updateData;
+            //                 updateData = {};
+            //                 updateData[prefix + 'MC'] = MC.cards[0].name;
+            //                 updateData[prefix + 'frontLine'] = [MC];
+            //                 updateData[prefix + 'backLine'] = [];
+            //                 updateData[prefix + 'support'] = null;
+            //                 updateData[prefix + 'deck'] = [];
+            //                 updateData[prefix + 'retreat'] = [];
+            //                 updateData[prefix + 'boundless'] = [];
+            //                 updateData[prefix + 'orbs'] = [];
+            //                 updateData[prefix + 'bonds'] = [];
+            //                 updateData[prefix + 'hand'] = [];
+            //                 updateData['attackState'] = thisComponent.attackState;
+            //
+            //                 fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+            //
+            //                 // set up deck:
+            //                 fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
+            //                     let cards = doc.data();
+            //                     let deck = [];
+            //                     delete cards['Preferred_MCs'];
+            //
+            //                     // Create the deck array
+            //                     cards[MC.cards[0].id]--;
+            //                     Object.keys(cards).forEach(function (nextCard) {
+            //                         for (let i=0; i < cards[nextCard]; i++)
+            //                             deck.push(nextCard);
+            //                     });
+            //                     // shuffle the deck
+            //                     thisComponent.shuffle(deck);
+            //
+            //                     // draw 6 cards
+            //                     let hand = [];
+            //                     for (let i = 0; i < 6; i++)
+            //                         hand.push(thisComponent._draw(deck));
+            //
+            //                     // update the database to reflect these changes
+            //                     let updateData = {};
+            //                     updateData[prefix + 'deck'] = deck;
+            //                     updateData[prefix + 'hand'] = hand;
+            //                     updateData[prefix + 'mulligan'] = false;
+            //                     fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+            //
+            //                     // mulligan (optional reshuffle and redraw)
+            //                     thisComponent.binaryoption.prompt = "would you like to mulligan?";
+            //                     thisComponent.binaryoption.yes = function() {
+            //                         fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
+            //                             let data = doc.data();
+            //                             let deck = data.players[thisComponent.thisPlayer.username].deck;
+            //
+            //                             let hand = data.players[thisComponent.thisPlayer.username].hand;
+            //                             deck = deck.concat(hand);
+            //
+            //                             hand = [];
+            //                             thisComponent.shuffle(deck);
+            //                             for (let i = 0; i < 6; i++)
+            //                                 hand.push(thisComponent._draw(deck));
+            //
+            //                             let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+            //                             let updateData;
+            //                             updateData = {};
+            //
+            //                             updateData[prefix + 'deck'] = deck;
+            //                             updateData[prefix + 'hand'] = hand;
+            //                             updateData[prefix + 'mulligan'] = true;
+            //
+            //                             // TODO check mulligan property for security
+            //                             fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+            //                             thisComponent.addOrbs(5, false, false);
+            //                         });
+            //                     };
+            //                     thisComponent.binaryoption.no = (function() {
+            //                         let updateData = {};
+            //                         let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
+            //                         updateData[prefix + 'mulligan'] = true;
+            //
+            //                         fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
+            //
+            //                         thisComponent.addOrbs(5, false, false);
+            //                     });
+            //                     thisComponent.binaryoption.active = true;
+            //                 });
+            //
+            //             };
+            //
+            //             // get deck from database
+            //             fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
+            //                 let cards = doc.data();
+            //                 thisComponent.deck = cards.length - 1;
+            //
+            //                 // get card data from database
+            //                 Object.keys(cards).forEach(function (nextCard) {
+            //                     // grab the number of each card
+            //                     let num = cards[nextCard];
+            //                     if (nextCard.localeCompare('Preferred_MCs') !== 0) {
+            //                         fb.cardsCollection.doc(nextCard).get().then(function (cardDoc) {
+            //                             let cardID = cardDoc.id;
+            //                             let cardData = cardDoc.data();
+            //                             // set up cardselect options for MC selection
+            //                             cardData['id'] = cardID;
+            //                             thisComponent.seenCards[cardID] = cardData;
+            //                             cardData['valid'] = cardData['cost'] === 1;
+            //                             cardData['selected'] = false;
+            //                             // TODO implement preferred MCs
+            //                             for (let i = 0; i < num; i++) {
+            //                                 let instanceData = JSON.parse(JSON.stringify(cardData));
+            //                                 instanceData['count'] = i;
+            //                                 thisComponent.cardselect.options.push(instanceData);
+            //                             }
+            //                         });
+            //                     }
+            //
+            //
+            //                 });
+            //
+            //             });
+            //         } else if (this.host && data.players[this.otherplayer].orbs.length > 0
+            //                     && data.players[this.hostplayer].orbs.length > 0) {
+            //             // ready to start the game
+            //             this.startGame();
+            //         }
+            //     } else {
+            //         // game has begun
+            //
+            //         // update this player's gameboard
+            //         this.thisPlayer.frontLine = data.players[this.thisPlayer.username].frontLine;
+            //         this.thisPlayer.backLine = data.players[this.thisPlayer.username].backLine;
+            //         this.thisPlayer.support = data.players[this.thisPlayer.username].support;
+            //         this.thisPlayer.deck = data.players[this.thisPlayer.username].deck.length;
+            //         this.thisPlayer.retreat = data.players[this.thisPlayer.username].retreat;
+            //         this.thisPlayer.boundless = data.players[this.thisPlayer.username].boundless;
+            //         this.thisPlayer.orbs = data.players[this.thisPlayer.username].orbs.length;
+            //         this.thisPlayer.bonds = data.players[this.thisPlayer.username].bonds;
+            //         this.thisPlayer.hand = data.players[this.thisPlayer.username].hand;
+            //         this.attackState = data.attackState;
+            //         if (data.players[this.thisPlayer.username].mana)
+            //             this.mana = data.players[this.thisPlayer.username].mana;
+            //
+            //         // update known orbs
+            //         this.thisPlayer.knownOrbs = [];
+            //         for (let i = 0; i < this.thisPlayer.orbs; i++) {
+            //             let currentOrb = data.players[this.thisPlayer.username].orbs[i];
+            //             if (currentOrb['known'])
+            //                 this.thisPlayer.knownOrbs.push(currentOrb);
+            //         }
+            //
+            //         // update the opposing player's gameboard
+            //         if (data.players[this.oppPlayer.username]) {
+            //             this.oppPlayer.frontLine = data.players[this.oppPlayer.username].frontLine;
+            //             this.oppPlayer.backLine = data.players[this.oppPlayer.username].backLine;
+            //             this.oppPlayer.support = data.players[this.oppPlayer.username].support;
+            //             this.oppPlayer.deck = data.players[this.oppPlayer.username].deck.length;
+            //             this.oppPlayer.retreat = data.players[this.oppPlayer.username].retreat;
+            //             this.oppPlayer.boundless = data.players[this.oppPlayer.username].boundless;
+            //             this.oppPlayer.orbs = data.players[this.oppPlayer.username].orbs.length;
+            //             this.oppPlayer.bonds = data.players[this.oppPlayer.username].bonds;
+            //             this.oppPlayer.hand = data.players[this.oppPlayer.username].hand.length;
+            //         } else {
+            //             setTimeout(this.update, 300, data);
+            //         }
+            //
+            //
+            //         // update known orbs
+            //         this.oppPlayer.knownOrbs = [];
+            //         for (let i = 0; i < this.oppPlayer.orbs; i++) {
+            //             let currentOrb = data.players[this.oppPlayer.username].orbs[i];
+            //             if (currentOrb['faceUp'])
+            //                 this.oppPlayer.knownOrbs.push(currentOrb);
+            //         }
+            //
+            //         // grab non-player-specific info
+            //         this.phase = data.currentPhase;
+            //
+            //         // determine whose turn it is based on turn number and who went first
+            //         let a = (data.hostFirst) ? 1 : 0;
+            //         let b = (this.host) ? 1 : 0;
+            //         let c = data.currentTurn % 2;
+            //         this.turn = !!((a ^ b) ^ c);
+            //
+            //
+            //             if (this.oppPlayer.frontLine.length === 0 && data.players[this.oppPlayer.username])
+            //                 this.forcedMarch(data);
+            //
+            //             switch (data.currentPhase) {
+            //                 case 0:
+            //                     // beginning phase
+            //                     if (this.turn)
+            //                     this.beginningPhase(data);
+            //                     break;
+            //                 case 1:
+            //                     // bond phase
+            //                     if (this.turn)
+            //                     this.bondPhase(data);
+            //                     break;
+            //                 case 2:
+            //                     // deploy phase
+            //                     if (this.turn)
+            //                     this.deployPhase(data);
+            //                     break;
+            //                 case 3:
+            //                     // action phase
+            //                     this.actionPhase(data);
+            //                     break;
+            //                 case 4:
+            //                     // end phase
+            //                     if (this.turn)
+            //                     this.endPhase(data);
+            //                     break;
+            //             }
+            //
+            //     }
+            //
+            // },
             initialize() {
                 // wait for the system to fetch user data
-                if (!this.$store.state.userProfile.username) {
+                if (!this.$store.state.token) {
                     setTimeout(this.initialize, 100);
                     return;
                 }
@@ -742,44 +757,22 @@
                     setTimeout(this.initialize, 100);
                     return;
                 }
-                // initialize constants for this game
-                let thisComponent = this;
-                this.hostplayer = this.$router.currentRoute.params.id;
-                this.thisPlayer.username = this.$store.state.userProfile.username;
-                if (this.hostplayer.localeCompare(this.thisPlayer.username) === 0)
-                    this.host = true;
 
-                fb.roomsCollection.doc(this.hostplayer).get().then(function(room) {
-                    let roomData = room.data();
-                    thisComponent.otherplayer = roomData['other'];
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "getGameData",
+                        contents: {
+                            token: token
+                        }
+                    };
 
-                    if (thisComponent.host)
-                        thisComponent.oppPlayer.username = roomData['other'];
-                    else
-                        thisComponent.oppPlayer.username = roomData['host'];
+                    serverConnection.send(JSON.stringify(message));
+                }
 
-                });
+                pf.checkConnection(foo, this);
 
-                // set up system to update game as database is updated
-                fb.roomsCollection.doc(this.hostplayer).onSnapshot(function(room) {
-                    if (!room.exists) {
-                        alert("this game has ended");
-                        thisComponent.$router.push("/matchmaking");
-                    }
-                    let roomData = room.data();
-                    thisComponent.update(roomData);
-                });
-
-                // Initialize info panel (probably better to do a dummy initialization here instead)
-                fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
-                    let cards = doc.data();
-
-                    let startingInfo = cards['Preferred_MCs'][0];
-                    fb.cardsCollection.doc(startingInfo).get().then(function (doc) {
-                        thisComponent.infoCard = doc.data();
-                    });
-
-                });
             },
             select(card) { // used for the cardselect window when a card is clicked
                 // TODO move to cardselect object
@@ -1724,6 +1717,103 @@
                 updateData[prefix+'backLine'] = backLine;
 
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
+            },
+            updateGame(contents) {
+                let temp;
+                if (contents['thisPlayer']) {
+                    temp = contents['thisPlayer'];
+                    if (temp['frontLine']) {
+                        this.thisPlayer.frontLine = temp['frontLine'];
+                    }
+                    if (temp['backLine']) {
+                        this.thisPlayer.frontLine = temp['backLine'];
+                    }
+                    if (temp['support']) {
+                        this.thisPlayer.support = temp['support'];
+                    }
+                    if (temp['deck'] || temp['deck'] === 0) {
+                        this.thisPlayer.deck = temp['deck'];
+                    }
+                    if (temp['retreat']) {
+                        this.thisPlayer.retreat = temp['retreat'];
+                    }
+                    if (temp['boundless']) {
+                        this.thisPlayer.boundless = temp['boundless'];
+                    }
+                    if (temp['orbs'] || temp['orbs'] === 0) {
+                        this.thisPlayer.orbs = temp['orbs'];
+                    }
+                    if (temp['knownOrbs']) {
+                        this.thisPlayer.knownOrbs = temp['knownOrbs'];
+                    }
+                    if (temp['faceUpOrbs']) {
+                        this.thisPlayer.faceUpOrbs = temp['faceUpOrbs'];
+                    }
+                    if (temp['bonds']) {
+                        this.thisPlayer.bonds = temp['bonds'];
+                    }
+                    if (temp['hand']) {
+                        this.thisPlayer.hand = temp['hand'];
+                    }
+                }
+                if (contents['oppPlayer']) {
+                    temp = contents['oppPlayer'];
+                    if (temp['frontLine']) {
+                        this.oppPlayer.frontLine = temp['frontLine'];
+                    }
+                    if (temp['backLine']) {
+                        this.oppPlayer.frontLine = temp['backLine'];
+                    }
+                    if (temp['support']) {
+                        this.oppPlayer.support = temp['support'];
+                    }
+                    if (temp['deck'] || temp['deck'] === 0) {
+                        this.oppPlayer.deck = temp['deck'];
+                    }
+                    if (temp['retreat']) {
+                        this.oppPlayer.retreat = temp['retreat'];
+                    }
+                    if (temp['boundless']) {
+                        this.oppPlayer.boundless = temp['boundless'];
+                    }
+                    if (temp['orbs'] || temp['orbs'] === 0) {
+                        this.oppPlayer.orbs = temp['orbs'];
+                    }
+                    if (temp['knownOrbs']) {
+                        this.oppPlayer.knownOrbs = temp['knownOrbs'];
+                    }
+                    if (temp['faceUpOrbs']) {
+                        this.oppPlayer.faceUpOrbs = temp['faceUpOrbs'];
+                    }
+                    if (temp['bonds']) {
+                        this.oppPlayer.bonds = temp['bonds'];
+                    }
+                    if (temp['hand'] || temp['hand'] === 0) {
+                        this.oppPlayer.hand = temp['hand'];
+                    }
+                }
+                if (contents['rps']) {
+                    if (contents.rps === 'n') {
+                        // display Rock Paper Scissors
+                        this.rps = true;
+                    }
+                }
+                if (contents['attackState']) {
+                    // TODO : replace with next action type thing y'know eh?
+                }
+                if (contents['turnNum']) {
+                    this.turn = this.first && (contents['turnNum'] % 2 === 1)
+                            || !this.first && (contents['turnNum'] % 2 === 0);
+                }
+                if (contents['phaseNum']) {
+                    this.phase = contents['phaseNum'];
+                }
+                if (contents['seenCards']) {
+                    this.seenCards = contents['seenCards'];
+                }
+                if (contents['firstPlayer']) {
+                    this.first = this.thisPlayer.username === contents['firstPlayer']
+                }
             }
         }
     }

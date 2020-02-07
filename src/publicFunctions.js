@@ -60,6 +60,10 @@ async function checkConnection(generateMessage, activeComponent) {
                 if (activeComponent.updateRoom)
                     activeComponent.updateRoom(response.contents);
                 break;
+
+            case "gameData":
+                if (activeComponent.updateGame)
+                    activeComponent.updateGame(response.contents)
         }
     }
 }

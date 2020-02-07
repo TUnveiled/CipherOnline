@@ -81,7 +81,7 @@ wss.on('connection', ws => {
     ws.on('message', message => {
         console.log(`${message}`);
         message = JSON.parse(message);
-        let response, user, room, host;
+        let response, user, room, host, contents;
 
         switch (message.type) {
 
@@ -109,8 +109,18 @@ wss.on('connection', ws => {
                 break;
 
             case "NewCon":
-                usersToSockets[tokensToUsers[message.contents.token]] = ws;
-                // TODO : fix to check rooms for users
+                user = tokensToUsers[message.contents.token];
+                usersToSockets[user] = ws;
+
+                for (let i = 0; i < rooms.length; i++) {
+                    if (rooms[i].containsUser(user)) {
+                        if (rooms[i].hostedBy(user)) {
+                            rooms[i].players[0].socket = ws;
+                        } else {
+                            rooms[i].players[1].socket = ws;
+                        }
+                    }
+                }
                 break;
 
             case "New Room": // add the new room to the database
@@ -390,8 +400,101 @@ wss.on('connection', ws => {
                     return;
                 room.startGame(fb);
 
+                response = {
+                    type: "route",
+                    contents: {
+                        destination: '/game/' + room.getHostName()
+                    }
+                };
+
+                ws.send(JSON.stringify(response));
+                room.players[1].socket.send(JSON.stringify(response));
                 break;
 
+            case "getGameData":
+                // Room info
+                user = tokensToUsers[message.contents.token];
+                room = rooms.filter(room => {
+                    return room.containsUser(user);
+                })[0];
+
+                // TODO actually make this work
+                let thisPlayer = { // variables pertaining to the logged in player's game state
+                    frontLine: [], // array of "Unit" objects representing the front line
+                    backLine: [], // array of "Unit" objects representing the back line
+                    support: null, // id of the current supporting card
+                    deck: 0, // number of cards in the deck
+                    retreat: [], // array of card IDs representing the retreat pile
+                    boundless: [], // not currently used
+                    orbs: 0, // number of orbs remaining
+                    knownOrbs: [], // number of orbs known to this player
+                    faceUpOrbs: [],
+                    bonds: [], // array representing this player's bonds
+                    hand: [] // array representing this player's hand
+                };
+
+                // TODO actually make this work
+                let oppPlayer = {
+                    frontLine: [], // array of "Unit" objects representing the front line
+                    backLine: [], // array of "Unit" objects representing the back line
+                    support: null, // id of the current supporting card
+                    deck: 0, // number of cards in the deck
+                    retreat: [], // array of card IDs representing the retreat pile
+                    boundless: [], // not currently used
+                    orbs: 0, // number of orbs remaining
+                    faceUpOrbs: [],
+                    bonds: [], // array representing this player's bonds
+                    hand: 0 // array representing this player's hand
+                };
+
+                response = {
+                    type: "gameData",
+                    contents: {
+                        thisPlayer: thisPlayer,
+                        oppPlayer: oppPlayer,
+                        rps: room.getPlayer(user).rps,
+                        attackState: null,
+                        turnNum: -1,
+                        phaseNum: -1,
+                        seenCards: null,
+                        firstPlayer: null
+                    }
+                };
+
+                ws.send(JSON.stringify(response));
+                break;
+
+            case "rps":
+                // Room info
+                user = tokensToUsers[message.contents.token];
+                room = rooms.filter(room => {
+                    return room.containsUser(user);
+                })[0];
+
+                room.getPlayer(user).rps = message.contents.option;
+
+                if (room.checkRPS()) {
+                    if (room.firstPlayer) {
+                        response = {
+                            type: 'roomData',
+                            contents: {
+                                firstPlayer: room.firstPlayer.name
+                            }
+                        }
+                    } else {
+                        response = {
+                            type: 'roomData',
+                            contents: {
+                                rps: 'n'
+                            }
+                        }
+                    }
+
+                    room.players[0].socket.send(JSON.stringify(response));
+                    room.players[1].socket.send(JSON.stringify(response));
+                }
+
+                break;
         }
 
         console.log(`Received message => ${message}`)

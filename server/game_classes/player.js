@@ -1,3 +1,4 @@
+var Deck = require('./deck').Deck;
 // eslint-disable-next-line no-unused-vars
 class Player {
     // eslint-disable-next-line no-unused-vars
@@ -15,16 +16,12 @@ class Player {
         this.frontline = null;
         this.backline = null;
         this.bond = null;
-        this.rps = null;
+        this.rps = 'n';
         this.MC = null;
     }
 
-    async initializeDeck(fb, activeCards) {
-        fb;
-        activeCards;
-        // TODO : Create deck object
-        // get references from activeCards
-        // etc. etc.
+    initializeDeck(fb, activeCards) {
+        this.deck = new Deck(fb, activeCards);
     }
 }
 
