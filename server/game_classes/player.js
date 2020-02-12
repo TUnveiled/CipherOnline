@@ -13,11 +13,18 @@ class Player {
         this.boundless = null;
         this.deck = null;
         this.hand = null;
-        this.frontline = null;
-        this.backline = null;
+        this.frontline = [];
+        this.backline = [];
         this.bond = null;
         this.rps = 'n';
         this.MC = null;
+        this.seenCards = [];
+        this.optionResults = [];
+        this.options = [];
+    }
+
+    selectMC(index) {
+        return index; // TODO : do this
     }
 
     initializeDeck(fb, activeCards) {

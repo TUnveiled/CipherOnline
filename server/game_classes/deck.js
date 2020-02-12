@@ -24,10 +24,10 @@ class Deck {
                             let cardID = cardDoc.id;
                             let cardData = cardDoc.data();
                             cardData['id'] = cardID;
-                            activeCards[cardID] = cardData;
+                            activeCards.cardObj[cardID] = cardData;
 
                             for (let i = 0; i < num; i++) {
-                                deck.model.push(new CardCopy(activeCards[cardID]));
+                                deck.model.push(new CardCopy(activeCards.cardObj[cardID]));
                             }
 
                             // // set up cardselect options for MC selection
@@ -51,6 +51,9 @@ class Deck {
 
     }
 
+    get() {
+        return this.model;
+    }
 }
 
 exports.Deck = Deck;

@@ -24,7 +24,7 @@ class Room {
         if (this.players[0].name === name) {
             return this.players[0];
         } else if (this.players[1].name === name) {
-            return this.players[1]
+            return this.players[1];
         } else {
             return null;
         }
@@ -58,13 +58,17 @@ class Room {
                 break;
         }
 
-        if (hostWin === null) {
+        if (hostWin == null) {
             this.players[0].rps = 'n';
             this.players[1].rps = 'n';
         }
         else if (hostWin) {
+            // eslint-disable-next-line no-console
+            console.log("win1");
             this.firstPlayer = this.players[0];
         } else {
+            // eslint-disable-next-line no-console
+            console.log("win2");
             this.firstPlayer = this.players[1];
         }
 

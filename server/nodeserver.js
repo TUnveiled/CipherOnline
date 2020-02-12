@@ -79,8 +79,8 @@ wss.on('connection', ws => {
         console.log("lost connection");
     });
     ws.on('message', message => {
-        console.log(`${message}`);
         message = JSON.parse(message);
+        console.log(message);
         let response, user, room, host, contents;
 
         switch (message.type) {
@@ -418,19 +418,22 @@ wss.on('connection', ws => {
                     return room.containsUser(user);
                 })[0];
 
+                let player = room.getPlayer(user);
+                let oPlayer = (room.hostedBy(user)) ? room.players[1] : room.players[0];
+
                 // TODO actually make this work
                 let thisPlayer = { // variables pertaining to the logged in player's game state
                     frontLine: [], // array of "Unit" objects representing the front line
                     backLine: [], // array of "Unit" objects representing the back line
                     support: null, // id of the current supporting card
-                    deck: 0, // number of cards in the deck
+                    deck: player.deck.get().length, // number of cards in the deck
                     retreat: [], // array of card IDs representing the retreat pile
                     boundless: [], // not currently used
                     orbs: 0, // number of orbs remaining
                     knownOrbs: [], // number of orbs known to this player
                     faceUpOrbs: [],
                     bonds: [], // array representing this player's bonds
-                    hand: [] // array representing this player's hand
+                    hand: [], // array representing this player's hand,
                 };
 
                 // TODO actually make this work
@@ -438,7 +441,7 @@ wss.on('connection', ws => {
                     frontLine: [], // array of "Unit" objects representing the front line
                     backLine: [], // array of "Unit" objects representing the back line
                     support: null, // id of the current supporting card
-                    deck: 0, // number of cards in the deck
+                    deck: oPlayer.deck.get().length, // number of cards in the deck
                     retreat: [], // array of card IDs representing the retreat pile
                     boundless: [], // not currently used
                     orbs: 0, // number of orbs remaining
@@ -453,11 +456,10 @@ wss.on('connection', ws => {
                         thisPlayer: thisPlayer,
                         oppPlayer: oppPlayer,
                         rps: room.getPlayer(user).rps,
-                        attackState: null,
                         turnNum: -1,
                         phaseNum: -1,
-                        seenCards: null,
-                        firstPlayer: null
+                        firstPlayer: null,
+                        options: player.options,
                     }
                 };
 
@@ -471,29 +473,81 @@ wss.on('connection', ws => {
                     return room.containsUser(user);
                 })[0];
 
-                room.getPlayer(user).rps = message.contents.option;
+                room.getPlayer(user).rps = message.contents.choice;
+                console.log(room.getPlayer(user).rps);
 
                 if (room.checkRPS()) {
+
                     if (room.firstPlayer) {
-                        response = {
-                            type: 'roomData',
-                            contents: {
-                                firstPlayer: room.firstPlayer.name
+                        console.log("here");
+                        for (let i = 0; i < 2; i++) {
+                            let options = {
+                                uiType: 'cardSelect',
+                                cardselect: {
+                                    active: true, // whether the window is visible
+                                    options: [], // the cards that can be selected
+                                    min: 1, // the minimum number of cards that need to be selected
+                                    max: 1, // the max number of cards that can be selected
+                                    message: 'Select Your MC', // prompt for selection
+                                    numSelected: 0 // the number of options currently selected
+                                    // confirm: null
+                                },
+                            };
+                            let player = room.players[i];
+                            let deck = player.deck.get();
+                            player.optionResults = [];
+                            for (let j = 0; j < player.deck.length; j++) {
+                                let card = deck[i].get();
+                                let option = {
+                                    id: card['id'],
+                                    valid: card['cost'] === 1,
+                                    selected: false
+                                };
+                                options.cardselect.options.push(option);
+
+                                player.optionResults.push({
+                                    func: (option.valid) ? player.selectMC : null
+                                });
                             }
+                            player.options = options;
+
+                            response = {
+                                type: 'gameData',
+                                contents: {
+                                    firstPlayer: room.firstPlayer.name,
+                                    seenCards: null,
+                                    options: options
+                                }
+                            };
+
+                            player.socket.send(JSON.stringify(response));
+
                         }
+
                     } else {
                         response = {
-                            type: 'roomData',
+                            type: 'gameData',
                             contents: {
                                 rps: 'n'
                             }
-                        }
+                        };
+
+                        room.players[0].socket.send(JSON.stringify(response));
+                        room.players[1].socket.send(JSON.stringify(response));
                     }
 
-                    room.players[0].socket.send(JSON.stringify(response));
-                    room.players[1].socket.send(JSON.stringify(response));
+
                 }
 
+                break;
+
+            case "getCardData":
+                console.log(activeCards.cardObj[message.contents.id]);
+                response = {
+                    type: 'newCard',
+                    contents: activeCards.cardObj[message.contents.id]
+                };
+                ws.send(JSON.stringify(response));
                 break;
         }
 

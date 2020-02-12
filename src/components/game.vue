@@ -20,13 +20,16 @@
                 <tbody>
                 <tr>
                     <td v-for="(element, index) in cardselect.options" :key="index">
-                        <img height="200px" :src="element.imageref" alt="" :style="
+                        {{JSON.stringify(element)}}
+                        <img height="200px" :src="fetchCardData(element.id).imageref"
+                             alt="" :style="
                          'opacity: ' + ((element.valid) ? 1 : 0.5) + ';' +
                          'border: ' + ((element.selected) ? '3px solid green' : '3px solid white') + ';' +
                          'border-radius: 12px;'
                         "
-                        v-on:mouseenter="infoCard=element"
+                        v-on:mouseenter="infoCard=fetchCardData(element.id)"
                         v-on:click="select(element)">
+
                     </td>
                 </tr>
                 </tbody>
@@ -790,6 +793,7 @@
                     return card.selected;
                 });
 
+                // TODO replace with real things.
                 this.cardselect.confirm(results);
 
                 this.cardselect = {
@@ -868,19 +872,25 @@
                     tapped: false
                 }
             },
-            async fetchCardData(id) {
+            fetchCardData(id) {
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "getCardData",
+                        contents: {
+                            id: id
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
                 //  gets card data from database if it isn't already stored
                 if (!id)
                     return 1;
                 if (!this.seenCards[id]) {
-                    let promise = new Promise((resolve) => {
-                        fb.cardsCollection.doc(id).get().then(function(doc) {
-                            let data = doc.data();
-                            data['id'] = doc.id;
-                            resolve(data);
-                        })
-                    });
-                    this.seenCards[id] = await promise;
+
+                    pf.checkConnection(foo, this);
+
+                    return null;
                 }
                 return this.seenCards[id];
             },
@@ -1718,6 +1728,13 @@
 
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
             },
+            decipher(options) {
+                switch (options.uiType) {
+                    case "cardSelect":
+                        this.cardselect = options.cardselect;
+                        break;
+                }
+            },
             updateGame(contents) {
                 let temp;
                 if (contents['thisPlayer']) {
@@ -1798,8 +1815,11 @@
                         this.rps = true;
                     }
                 }
-                if (contents['attackState']) {
-                    // TODO : replace with next action type thing y'know eh?
+                if (contents['seenCards']) {
+                    this.seenCards = contents['seenCards'];
+                }
+                if (contents['options']) {
+                   this.decipher(contents['options']);
                 }
                 if (contents['turnNum']) {
                     this.turn = this.first && (contents['turnNum'] % 2 === 1)
@@ -1807,9 +1827,6 @@
                 }
                 if (contents['phaseNum']) {
                     this.phase = contents['phaseNum'];
-                }
-                if (contents['seenCards']) {
-                    this.seenCards = contents['seenCards'];
                 }
                 if (contents['firstPlayer']) {
                     this.first = this.thisPlayer.username === contents['firstPlayer']

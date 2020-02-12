@@ -4,6 +4,9 @@ class CardCopy {
         this.cardData = ref;
     }
 
+    get() {
+        return this.cardData;
+    }
 }
 
 exports.CardCopy = CardCopy;

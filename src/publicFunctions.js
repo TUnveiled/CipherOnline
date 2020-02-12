@@ -63,7 +63,12 @@ async function checkConnection(generateMessage, activeComponent) {
 
             case "gameData":
                 if (activeComponent.updateGame)
-                    activeComponent.updateGame(response.contents)
+                    activeComponent.updateGame(response.contents);
+                break;
+            case "newCard":
+                if (activeComponent.seenCards)
+                    activeComponent.seenCards[response.contents.id] = response.contents;
+                break;
         }
     }
 }
