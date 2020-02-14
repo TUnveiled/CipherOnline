@@ -54,6 +54,12 @@ class Deck {
     get() {
         return this.model;
     }
+
+    grab(index) {
+        let temp = this.model[index];
+        this.model.splice(index, 1);
+        return temp;
+    }
 }
 
 exports.Deck = Deck;

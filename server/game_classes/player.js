@@ -1,4 +1,6 @@
 var Deck = require('./deck').Deck;
+var Line = require('./line').Line;
+var Unit = require('./unit').Unit;
 // eslint-disable-next-line no-unused-vars
 class Player {
     // eslint-disable-next-line no-unused-vars
@@ -13,18 +15,36 @@ class Player {
         this.boundless = null;
         this.deck = null;
         this.hand = null;
-        this.frontline = [];
-        this.backline = [];
+        this.frontline = new Line();
+        this.backline = new Line();
         this.bond = null;
         this.rps = 'n';
         this.MC = null;
-        this.seenCards = [];
         this.optionResults = [];
         this.options = [];
     }
 
-    selectMC(index) {
+    // eslint-disable-next-line no-unused-vars
+    selectMC(index, params) {
+
+        // add MC to front line
+
+        let mc = this.deck.grab(index);
+
+        this.frontline.deploy(this.MC = new Unit(mc, true));
+
+        this.options = [];
+        this.optionResults = [];
+
+        this.room.sendGameState();
+
         return index; // TODO : do this
+    }
+
+    selectResult(index) {
+        let optionResult = this.optionResults[index];
+        
+        optionResult.func(index, optionResult.params);
     }
 
     initializeDeck(fb, activeCards) {

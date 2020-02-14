@@ -71,6 +71,8 @@ async function checkConnection(generateMessage, activeComponent) {
                 break;
         }
     }
+
+    // await
 }
 
 export {checkConnection};

@@ -20,8 +20,7 @@
                 <tbody>
                 <tr>
                     <td v-for="(element, index) in cardselect.options" :key="index">
-                        {{JSON.stringify(element)}}
-                        <img height="200px" :src="fetchCardData(element.id).imageref"
+                        <img v-if="seenCards[element.id]" height="200px" :src="seenCards[element.id].imageref"
                              alt="" :style="
                          'opacity: ' + ((element.valid) ? 1 : 0.5) + ';' +
                          'border: ' + ((element.selected) ? '3px solid green' : '3px solid white') + ';' +
@@ -789,12 +788,31 @@
             },
             confirmSelection() { // function that runs when the user completes their selection
                 // TODO move to cardselect object
-                let results = this.cardselect.options.filter(function(card) {
-                    return card.selected;
-                });
+                let results = []
+                for(let i = 0; i < this.cardselect.options.length; i++){
+                    if(this.cardselect.options[i].selected){
+                        results.push(i);
+                    }
+                }
+
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: results
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo,this)
 
                 // TODO replace with real things.
-                this.cardselect.confirm(results);
+
 
                 this.cardselect = {
                     active: false,
@@ -872,7 +890,7 @@
                     tapped: false
                 }
             },
-            fetchCardData(id) {
+            async fetchCardData(id) {
                 let serverConnection = this.$store.state.connection;
                 function foo() {
                     let message = {
@@ -881,14 +899,14 @@
                             id: id
                         }
                     };
-                    serverConnection.send(JSON.stringify(message));
+                     serverConnection.send(JSON.stringify(message));
                 }
                 //  gets card data from database if it isn't already stored
                 if (!id)
                     return 1;
                 if (!this.seenCards[id]) {
 
-                    pf.checkConnection(foo, this);
+                    await pf.checkConnection(foo, this);
 
                     return null;
                 }
@@ -1728,10 +1746,28 @@
 
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
             },
-            decipher(options) {
+            async decipher(options) {
+                let wait;
+                let game = this;
                 switch (options.uiType) {
                     case "cardSelect":
-                        this.cardselect = options.cardselect;
+
+                        for(let i = 0; i < options.cardselect.options.length; i++) {
+                            this.fetchCardData(options.cardselect.options[i].id);
+                        }
+
+                        wait = function() {
+                            for (let i = 0; i < options.cardselect.options.length; i++) {
+                                if (!game.seenCards[options.cardselect.options[i].id]) {
+                                    setTimeout(wait, 50);
+                                    return;
+                                }
+                                game.cardselect = options.cardselect;
+                            }
+                        };
+
+                        wait();
+
                         break;
                 }
             },
@@ -1814,9 +1850,6 @@
                         // display Rock Paper Scissors
                         this.rps = true;
                     }
-                }
-                if (contents['seenCards']) {
-                    this.seenCards = contents['seenCards'];
                 }
                 if (contents['options']) {
                    this.decipher(contents['options']);

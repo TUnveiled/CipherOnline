@@ -81,7 +81,7 @@ wss.on('connection', ws => {
     ws.on('message', message => {
         message = JSON.parse(message);
         console.log(message);
-        let response, user, room, host, contents;
+        let response, user, room, host, player;
 
         switch (message.type) {
 
@@ -418,7 +418,7 @@ wss.on('connection', ws => {
                     return room.containsUser(user);
                 })[0];
 
-                let player = room.getPlayer(user);
+                player = room.getPlayer(user);
                 let oPlayer = (room.hostedBy(user)) ? room.players[1] : room.players[0];
 
                 // TODO actually make this work
@@ -495,15 +495,18 @@ wss.on('connection', ws => {
                             };
                             let player = room.players[i];
                             let deck = player.deck.get();
+
+
                             player.optionResults = [];
-                            for (let j = 0; j < player.deck.length; j++) {
-                                let card = deck[i].get();
+                            for (let j = 0; j < deck.length; j++) {
+                                let card = deck[j].get();
                                 let option = {
                                     id: card['id'],
                                     valid: card['cost'] === 1,
                                     selected: false
                                 };
-                                options.cardselect.options.push(option);
+
+                                options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
 
                                 player.optionResults.push({
                                     func: (option.valid) ? player.selectMC : null
@@ -515,7 +518,6 @@ wss.on('connection', ws => {
                                 type: 'gameData',
                                 contents: {
                                     firstPlayer: room.firstPlayer.name,
-                                    seenCards: null,
                                     options: options
                                 }
                             };
@@ -542,13 +544,34 @@ wss.on('connection', ws => {
                 break;
 
             case "getCardData":
-                console.log(activeCards.cardObj[message.contents.id]);
+
                 response = {
                     type: 'newCard',
                     contents: activeCards.cardObj[message.contents.id]
                 };
                 ws.send(JSON.stringify(response));
                 break;
+
+            case "selection":
+                // Room info
+                user = tokensToUsers[message.contents.token];
+                room = rooms.filter(room => {
+                    return room.containsUser(user);
+                })[0];
+
+                player = room.getPlayer(user);
+
+                switch (player.options.uiType) {
+                    case "cardSelect":
+                        for (let i = 0; i < player.options.cardselect.max && i < message.contents.results.length; i++) {
+                            player.selectResult(message.contents.results[i]);
+                        }
+                }
+
+
+
+                break;
+
         }
 
         console.log(`Received message => ${message}`)

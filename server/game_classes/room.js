@@ -137,6 +137,62 @@ class Room {
 
     }
 
+    sendGameState() {
+        for (let i = 0; i < 2; i++) {
+
+            let thisIndex = i;
+            let oppIndex = (i+1) % 2;
+
+            // TODO actually make this work
+            let thisPlayer = { // variables pertaining to the logged in player's game state
+                frontLine: this.players[thisIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
+                // backLine: [], // array of "Unit" objects representing the back line
+                // support: null, // id of the current supporting card
+                deck: this.players[thisIndex].deck.get().length, // number of cards in the deck
+                // retreat: [], // array of card IDs representing the retreat pile
+                // boundless: [], // not currently used
+                // orbs: 0, // number of orbs remaining
+                // knownOrbs: [], // number of orbs known to this player
+                // faceUpOrbs: [],
+                // bonds: [], // array representing this player's bonds
+                // hand: [], // array representing this player's hand,
+            };
+
+            // TODO actually make this work
+            let oppPlayer = {
+                frontLine: this.players[oppIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
+                // backLine: [], // array of "Unit" objects representing the back line
+                // support: null, // id of the current supporting card
+                deck: this.players[oppIndex].deck.get().length, // number of cards in the deck
+                // retreat: [], // array of card IDs representing the retreat pile
+                // boundless: [], // not currently used
+                // orbs: 0, // number of orbs remaining
+                // faceUpOrbs: [],
+                // bonds: [], // array representing this player's bonds
+                // hand: 0 // array representing this player's hand
+            };
+
+            if (this.currentTurn < 0)
+                oppPlayer.frontLine = [];
+
+            let response = {
+                type: "gameData",
+                contents: {
+                    thisPlayer: thisPlayer,
+                    oppPlayer: oppPlayer,
+                    rps: this.players[thisIndex].rps,
+                    turnNum: this.currentTurn,
+                    phaseNum: this.currentPhase,
+                    firstPlayer: this.firstPlayer.name,
+                    options: this.players[thisIndex].options,
+                }
+            };
+
+            this.players[i].socket.send(JSON.stringify(response));
+
+        }
+    }
+
 
 }
 exports.Room = Room;
