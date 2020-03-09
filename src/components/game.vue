@@ -993,29 +993,11 @@
                 fb.roomsCollection.doc(this.hostplayer).update(updateData);
             },
             nextPhase() {
-                if (this.communicating)
-                    return;
-                this.communicating = true;
-
-                let thisComponent = this;
-                this.centermessage = '';
-
-                // get database state to modify
-                fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
-                    let data = doc.data();
-
-                    let updateData = {currentPhase: data.currentPhase+1};
-                    let prefix='players.'+thisComponent.thisPlayer.username+'.';
-                    switch (data.currentPhase) {
-                        case 1:
-                            updateData[prefix+'mana'] = data.players[thisComponent.thisPlayer.username].bonds.length;
-                    }
-
-                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData).then(function() {
-                        thisComponent.communicating = false;
-                    });
-
-                });
+                switch (this.phase) {
+                    case 1:
+                        // select the first option after each bond in hand (always to skip bonding)
+                        this.bondFromHand(this.thisPlayer.hand.length)
+                }
             },
             beginningPhase(data) {
                 if (!this.communicating) {

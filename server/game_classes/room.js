@@ -172,11 +172,18 @@ class Room {
         let deck = player.deck.get();
 
         player.optionResults = [];
+
+        // options to bond each card in their hand
         for (let j = 0; j < deck.length; j++) {
             player.optionResults.push({
                 func: "bond"
             });
         }
+
+        // option to skip bonding
+        player.optionResults.push({
+            func: "deploy"
+        });
         player.options = options;
     }
 
