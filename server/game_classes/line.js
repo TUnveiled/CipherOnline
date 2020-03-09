@@ -17,6 +17,12 @@ class Line {
 
         return ret;
     }
+
+    untapAll() {
+        this.model.forEach(function (unit) {
+            unit.untap();
+        });
+    }
 }
 
 exports.Line = Line;

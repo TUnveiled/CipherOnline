@@ -111,10 +111,11 @@
                         <table v-if="oppPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width: 50%;"></td>
                             <td v-for="(unit, index) in oppPlayer.backLine" :key="index">
-                                <div v-if="!seenCards[unit.cards[0].id]">
-                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                <div v-if="!seenCards[unit.cards[0]]">
+                                    <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                 </div>
-                                <unit :oref="unit" :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackBackLine "
+                                <unit :oref="unit" :cardref="seenCards[unit.cards[0]]"
+                                      :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackBackLine "
                                       @hover="setInfoCard" v-else
                                       @click="unitClicked(oppPlayer.backLine, index)"></unit>
                             </td>
@@ -144,10 +145,11 @@
                             <table v-if="oppPlayer.frontLine.length > 0"><tbody><tr>
                                 <td style="width: 50%;"></td>
                                 <td v-for="(unit, index) in oppPlayer.frontLine" :key="index">
-                                    <div v-if="!seenCards[unit.cards[0].id]">
-                                        <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                    <div v-if="!seenCards[unit.cards[0]]">
+                                        <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                     </div>
-                                    <unit :oref="unit" :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackFrontLine"
+                                    <unit :oref="unit" :cardref="seenCards[unit.cards[0]]"
+                                          :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackFrontLine"
                                           @hover="setInfoCard" v-else
                                           @click="unitClicked(oppPlayer.frontLine, index)"></unit>
                                 </td>
@@ -222,10 +224,10 @@
                         <table v-if="thisPlayer.frontLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.frontLine" :key="index">
-                                <div v-if="!seenCards[unit.cards[0].id]">
-                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                <div v-if="!seenCards[unit.cards[0]]">
+                                    <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                 </div>
-                                <unit :oref="unit" @hover="setInfoCard" v-else
+                                <unit :oref="unit" :cardref="seenCards[unit.cards[0]]" @hover="setInfoCard" v-else
                                       @click="unitClicked(thisPlayer.frontLine, index)"></unit>
                             </td>
                             <td style="width:50%;"></td>
@@ -252,10 +254,10 @@
                         <table v-if="thisPlayer.backLine.length > 0"><tbody><tr>
                             <td style="width:50%;"></td>
                             <td v-for="(unit, index) in thisPlayer.backLine" :key="index">
-                                <div v-if="!seenCards[unit.cards[0].id]">
-                                    <a v-if="fetchCardData(unit.cards[0].id)">Loading...</a>
+                                <div v-if="!seenCards[unit.cards[0]]">
+                                    <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                 </div>
-                                <unit :oref="unit" @hover="setInfoCard" v-else
+                                <unit :oref="unit" :cardref="seenCards[unit.cards[0]]" @hover="setInfoCard" v-else
                                       @click="unitClicked(thisPlayer.backLine, index)"></unit>
                             </td>
                             <td style="width:50%;"></td>
@@ -760,6 +762,8 @@
                     return;
                 }
 
+                this.thisPlayer.username = this.$store.state.userProfile.username;
+
                 let token = this.$store.state.token;
                 let serverConnection = this.$store.state.connection;
                 function foo() {
@@ -913,16 +917,46 @@
                 return this.seenCards[id];
             },
             binaryYes() {
-                // binary option yes function
-                // TODO move to binaryoption
                 this.binaryoption.active = false;
-                this.binaryoption.yes();
+
+                // send message to server
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [0]
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo,this);
+
+
             },
             binaryNo() {
-                // binary option no function
-                // TODO move to binaryoption
                 this.binaryoption.active = false;
-                this.binaryoption.no();
+
+                // send message to server
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [1]
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo,this);
             },
             addOrbs(num, known, faceUp) { // TODO flesh out comments starting here
                 let thisComponent = this;
@@ -1319,7 +1353,7 @@
                 if (this.turn) {
                     switch (this.phase) {
                         case 1:
-                            this.bondFromHand(index, true);
+                            this.bondFromHand(index);
                             break;
                         case 2:
                             this.showDeployMenu(index);
@@ -1327,47 +1361,24 @@
                     }
                 }
             },
-            bondFromHand(index, incPhase, faceDown) {
-                // suppress duplicate calls
-                if (this.communicating)
-                    return;
-                this.communicating = true;
-
-                let thisComponent = this;
-                this.centermessage = '';
-
-                // get database state to modify
-                fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
-                    let data = doc.data();
-                    let hand = data.players[thisComponent.thisPlayer.username].hand;
-                    let bonds = data.players[thisComponent.thisPlayer.username].bonds;
-                    // create
-                    let newBond = {
-                        id: hand[index],
-                        flipped: !!faceDown,
-                        imageref: thisComponent.seenCards[hand[index]].imageref
+            bondFromHand(index) {
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [index]
+                        }
                     };
-                    bonds.push(newBond);
 
-                    hand.splice(index, 1);
+                    serverConnection.send(JSON.stringify(message));
+                }
 
-                    let updateData;
-                    if(incPhase)
-                        updateData = {currentPhase: data.currentPhase+1};
-                    else
-                        updateData = {};
-
-                    let prefix = 'players.'+thisComponent.thisPlayer.username+'.';
-                    updateData[prefix + 'hand'] = hand;
-                    updateData[prefix + 'bonds'] = bonds;
-                    if (incPhase)
-                        updateData[prefix + 'mana'] = bonds.length;
-
-                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData).then(function() {
-                        thisComponent.communicating = false;
-                    });
-
-                });
+                pf.checkConnection(foo, this);
+                this.phase = -1;
+                this.centermessage = "";
             },
             showDeployMenu(index) {
                 if (this.optionmenu.active)
@@ -1763,10 +1774,22 @@
                                     return;
                                 }
                                 game.cardselect = options.cardselect;
+                                game.cardselect.numSelected = 0;
                             }
                         };
 
                         wait();
+
+                        break;
+
+                    case "binaryoption":
+                        options.binaryoption.active = true;
+                        game.binaryoption = options.binaryoption;
+
+                        break;
+
+                    case "handselect":
+                        this.centermessage = options.handselect.message;
 
                         break;
                 }
@@ -1779,7 +1802,7 @@
                         this.thisPlayer.frontLine = temp['frontLine'];
                     }
                     if (temp['backLine']) {
-                        this.thisPlayer.frontLine = temp['backLine'];
+                        this.thisPlayer.backLine = temp['backLine'];
                     }
                     if (temp['support']) {
                         this.thisPlayer.support = temp['support'];
@@ -1815,7 +1838,7 @@
                         this.oppPlayer.frontLine = temp['frontLine'];
                     }
                     if (temp['backLine']) {
-                        this.oppPlayer.frontLine = temp['backLine'];
+                        this.oppPlayer.backLine = temp['backLine'];
                     }
                     if (temp['support']) {
                         this.oppPlayer.support = temp['support'];
@@ -1862,7 +1885,7 @@
                     this.phase = contents['phaseNum'];
                 }
                 if (contents['firstPlayer']) {
-                    this.first = this.thisPlayer.username === contents['firstPlayer']
+                    this.first = this.thisPlayer.username === contents['firstPlayer'];
                 }
             }
         }

@@ -324,7 +324,8 @@ wss.on('connection', ws => {
                 };
 
                 room.players[0].socket.send(JSON.stringify(response));
-                room.players[1].socket.send(JSON.stringify(response));
+                if (room.players[1])
+                    room.players[1].socket.send(JSON.stringify(response));
 
                 break;
 
@@ -418,52 +419,7 @@ wss.on('connection', ws => {
                     return room.containsUser(user);
                 })[0];
 
-                player = room.getPlayer(user);
-                let oPlayer = (room.hostedBy(user)) ? room.players[1] : room.players[0];
-
-                // TODO actually make this work
-                let thisPlayer = { // variables pertaining to the logged in player's game state
-                    frontLine: [], // array of "Unit" objects representing the front line
-                    backLine: [], // array of "Unit" objects representing the back line
-                    support: null, // id of the current supporting card
-                    deck: player.deck.get().length, // number of cards in the deck
-                    retreat: [], // array of card IDs representing the retreat pile
-                    boundless: [], // not currently used
-                    orbs: 0, // number of orbs remaining
-                    knownOrbs: [], // number of orbs known to this player
-                    faceUpOrbs: [],
-                    bonds: [], // array representing this player's bonds
-                    hand: [], // array representing this player's hand,
-                };
-
-                // TODO actually make this work
-                let oppPlayer = {
-                    frontLine: [], // array of "Unit" objects representing the front line
-                    backLine: [], // array of "Unit" objects representing the back line
-                    support: null, // id of the current supporting card
-                    deck: oPlayer.deck.get().length, // number of cards in the deck
-                    retreat: [], // array of card IDs representing the retreat pile
-                    boundless: [], // not currently used
-                    orbs: 0, // number of orbs remaining
-                    faceUpOrbs: [],
-                    bonds: [], // array representing this player's bonds
-                    hand: 0 // array representing this player's hand
-                };
-
-                response = {
-                    type: "gameData",
-                    contents: {
-                        thisPlayer: thisPlayer,
-                        oppPlayer: oppPlayer,
-                        rps: room.getPlayer(user).rps,
-                        turnNum: -1,
-                        phaseNum: -1,
-                        firstPlayer: null,
-                        options: player.options,
-                    }
-                };
-
-                ws.send(JSON.stringify(response));
+                room.sendGameState();
                 break;
 
             case "rps":
@@ -489,7 +445,7 @@ wss.on('connection', ws => {
                                     min: 1, // the minimum number of cards that need to be selected
                                     max: 1, // the max number of cards that can be selected
                                     message: 'Select Your MC', // prompt for selection
-                                    numSelected: 0 // the number of options currently selected
+                                    // numSelected: 0 // the number of options currently selected
                                     // confirm: null
                                 },
                             };
@@ -509,7 +465,7 @@ wss.on('connection', ws => {
                                 options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
 
                                 player.optionResults.push({
-                                    func: (option.valid) ? player.selectMC : null
+                                    func: (option.valid) ? "selectMC" : null
                                 });
                             }
                             player.options = options;
@@ -544,7 +500,6 @@ wss.on('connection', ws => {
                 break;
 
             case "getCardData":
-
                 response = {
                     type: 'newCard',
                     contents: activeCards.cardObj[message.contents.id]
@@ -563,12 +518,18 @@ wss.on('connection', ws => {
 
                 switch (player.options.uiType) {
                     case "cardSelect":
-                        for (let i = 0; i < player.options.cardselect.max && i < message.contents.results.length; i++) {
+                        let max = player.options.cardselect.max;
+                        for (let i = 0; i < max && i < message.contents.results.length; i++) {
                             player.selectResult(message.contents.results[i]);
                         }
+                        break;
+                    case "binaryoption":
+                        player.selectResult(message.contents.results[0]);
+                        break;
+
+                    case "handselect":
+                        player.selectResult(message.contents.results[0]);
                 }
-
-
 
                 break;
 

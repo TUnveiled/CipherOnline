@@ -4,11 +4,11 @@
                 (oref.tapped) ? 'min-width: 80px;' : ''
                 ">
             <div class="title" v-if="oref.MC">MC</div>
-            <img class="image" :src="oref.cards[0].imageref" alt="card" :style="
+            <img class="image" :src="cardref.imageref" alt="card" :style="
                 ((oref.tapped) ? 'transform: rotate(90deg);' : '') +
                 ((canselect === true) ? 'border: 3px solid green' : 'border: 1px solid black')">
             <div class="stack" v-if="oref.cards.length > 0">{{oref.cards.length}}</div>
-            <div class="attack">{{oref.cards[0].attack}}</div>
+            <div class="attack">{{cardref.attack}}</div>
             </div>
         </div>
     </template>
@@ -24,7 +24,8 @@
             },
             props: {
                 oref: Object,
-                canselect: Boolean
+                canselect: Boolean,
+                cardref: Object
             },
             methods: {
                 onHover() {

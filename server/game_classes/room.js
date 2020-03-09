@@ -9,11 +9,12 @@ class Room {
         this.currentPhase = -1;
         this.activeCards = activeCards;
         this.firstPlayer = null;
+        this.turnPlayer = null;
     }
 
     addPlayer(name, socket) {
         if (this.players[1] == null) {
-            this.players[1] = new Player(name, socket, false);
+            this.players[1] = new Player(name, socket, false, this);
             return true;
         } else {
             return false;
@@ -137,6 +138,54 @@ class Room {
 
     }
 
+    finishSetup() {
+        // if both players have completed their setup
+        if (this.players[0].orbArea.getClientVersion() > 0 && this.players[1].orbArea.getClientVersion() > 0) {
+            this.currentTurn = 1;
+            this.turnPlayer = this.firstPlayer;
+            this.beginningPhase();
+        }
+    }
+
+    beginningPhase() {
+        this.currentPhase = 0;
+
+        if (this.currentTurn > 1) {
+            this.turnPlayer.draw();
+        }
+
+        this.turnPlayer.untapAll();
+
+        this.bondPhase();
+    }
+
+    bondPhase() {
+        this.currentPhase = 1;
+
+        let options = {
+            uiType: 'handselect',
+            handselect: {
+                message: 'click a card in your hand to bond it'
+            },
+        };
+        let player = this.turnPlayer;
+        let deck = player.deck.get();
+
+        player.optionResults = [];
+        for (let j = 0; j < deck.length; j++) {
+            player.optionResults.push({
+                func: "bond"
+            });
+        }
+        player.options = options;
+    }
+
+    deployPhase() {
+        // TODO : deploy phase
+        this.currentPhase = 2;
+        this.sendGameState();
+    }
+
     sendGameState() {
         for (let i = 0; i < 2; i++) {
 
@@ -146,30 +195,29 @@ class Room {
             // TODO actually make this work
             let thisPlayer = { // variables pertaining to the logged in player's game state
                 frontLine: this.players[thisIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
-                // backLine: [], // array of "Unit" objects representing the back line
+                backLine: this.players[thisIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
                 // support: null, // id of the current supporting card
                 deck: this.players[thisIndex].deck.get().length, // number of cards in the deck
                 // retreat: [], // array of card IDs representing the retreat pile
                 // boundless: [], // not currently used
-                // orbs: 0, // number of orbs remaining
+                orbs: this.players[thisIndex].orbArea.getClientVersion(), // number of orbs remaining
                 // knownOrbs: [], // number of orbs known to this player
                 // faceUpOrbs: [],
-                // bonds: [], // array representing this player's bonds
-                // hand: [], // array representing this player's hand,
+                bonds: this.players[thisIndex].bondarea.getClientVersion(), // array representing this player's bonds
+                hand: this.players[thisIndex].hand.getClientVersion()
             };
 
-            // TODO actually make this work
             let oppPlayer = {
                 frontLine: this.players[oppIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
-                // backLine: [], // array of "Unit" objects representing the back line
+                backLine: this.players[oppIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
                 // support: null, // id of the current supporting card
                 deck: this.players[oppIndex].deck.get().length, // number of cards in the deck
                 // retreat: [], // array of card IDs representing the retreat pile
                 // boundless: [], // not currently used
-                // orbs: 0, // number of orbs remaining
+                orbs: this.players[oppIndex].orbArea.getClientVersion(), // number of orbs remaining
                 // faceUpOrbs: [],
-                // bonds: [], // array representing this player's bonds
-                // hand: 0 // array representing this player's hand
+                bonds: this.players[oppIndex].bondarea.getClientVersion(), // array representing this player's bonds
+                hand: this.players[oppIndex].hand.length()
             };
 
             if (this.currentTurn < 0)
@@ -183,7 +231,7 @@ class Room {
                     rps: this.players[thisIndex].rps,
                     turnNum: this.currentTurn,
                     phaseNum: this.currentPhase,
-                    firstPlayer: this.firstPlayer.name,
+                    firstPlayer: (this.firstPlayer) ? this.firstPlayer.name : null,
                     options: this.players[thisIndex].options,
                 }
             };

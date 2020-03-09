@@ -23,7 +23,7 @@ class Deck {
                         fb.cardsCollection.doc(nextCard).get().then(function (cardDoc) {
                             let cardID = cardDoc.id;
                             let cardData = cardDoc.data();
-                            cardData['id'] = cardID;
+                            cardData.id = cardID;
                             activeCards.cardObj[cardID] = cardData;
 
                             for (let i = 0; i < num; i++) {
@@ -55,10 +55,36 @@ class Deck {
         return this.model;
     }
 
+    draw() {
+        return this.grab(0);
+    }
+
     grab(index) {
         let temp = this.model[index];
         this.model.splice(index, 1);
         return temp;
+    }
+
+    push(element) {
+        this.model.push(element);
+    }
+
+    shuffle() {
+        let currentIndex = this.model.length, temporaryValue, randomIndex;
+
+        // While there remain elements to shuffle...
+        while (0 !== currentIndex) {
+
+            // Pick a remaining element...
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex -= 1;
+
+            // And swap it with the current element.
+            temporaryValue = this.model[currentIndex];
+            this.model[currentIndex] = this.model[randomIndex];
+            this.model[randomIndex] = temporaryValue;
+        }
+
     }
 }
 

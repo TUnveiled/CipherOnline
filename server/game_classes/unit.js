@@ -10,13 +10,21 @@ class Unit {
     getClientVersion() {
         let temp = [];
         for (let i = 0; i < this.cards.length; i++)
-            temp.push(this.cards[i].id);
+            temp.push(this.cards[i].get().id);
 
         return {
             cards: temp,
             MC: this.mc,
             tapped: this.tapped
         }
+    }
+
+    untap() {
+        this.tapped = false;
+    }
+
+    tap() {
+        this.tapped = true;
     }
 }
 
