@@ -47,7 +47,7 @@
             <!-- window used to select from a variable number of options -->
             <h5 style="color:black">{{optionmenu.prompt}}</h5>
             <div v-for="(option, index) in optionmenu.options" :key="index">
-            <button v-on:click="optionmenu.select(index)">{{option.name}}</button>
+            <button v-on:click="optionMenuSelect(index)">{{option}}</button>
             </div>
         </div>
         <div class="infopanel">
@@ -958,74 +958,16 @@
 
                 pf.checkConnection(foo,this);
             },
-            addOrbs(num, known, faceUp) { // TODO flesh out comments starting here
-                let thisComponent = this;
-                fb.roomsCollection.doc(thisComponent.hostplayer).get().then( function(doc) {
-                    let data = doc.data();
-                    let deck = data.players[thisComponent.thisPlayer.username].deck;
-
-                    let orbs = data.players[thisComponent.thisPlayer.username].orbs;
-
-                    thisComponent.shuffle(deck);
-                    for (let i = 0; i < num; i++) {
-                        let newOrb = {'cardID' : thisComponent._draw(deck)};
-                        newOrb['known'] = known;
-                        if (!faceUp)
-                        newOrb['faceUp'] = faceUp;
-                        orbs.push(newOrb);
-                    }
-
-                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                    let updateData;
-                    updateData = {};
-
-                    updateData[prefix + 'deck'] = deck;
-                    updateData[prefix + 'orbs'] = orbs;
-
-                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                });
-            },
-            startGame() {
-                let updateData = {
-                    currentTurn: 1,
-                    currentPhase: 0
-                };
-                fb.roomsCollection.doc(this.hostplayer).update(updateData);
-            },
             nextPhase() {
                 switch (this.phase) {
                     case 1:
                         // select the first option after each bond in hand (always to skip bonding)
-                        this.bondFromHand(this.thisPlayer.hand.length)
-                }
-            },
-            beginningPhase(data) {
-                if (!this.communicating) {
-                    this.communicating = true;
-                    let updateData = {};
+                        this.bondFromHand(this.thisPlayer.hand.length);
+                        break;
 
-                    let frontLine = data.players[this.thisPlayer.username].frontLine;
-                    let backLine = data.players[this.thisPlayer.username].backLine;
-
-                    frontLine.forEach(function (unit) {
-                        unit.tapped = false;
-                    });
-                    backLine.forEach(function (unit) {
-                        unit.tapped = false;
-                    });
-                    updateData['currentPhase'] = 1;
-
-                    updateData['players.' + this.thisPlayer.username + '.frontLine'] = frontLine;
-                    updateData['players.' + this.thisPlayer.username + '.backLine'] = backLine;
-
-                    let thisComponent = this;
-
-                    if (data['currentTurn'] && data['currentTurn'] > 1 && data['currentPhase'] === 0) {
-                        updateData = this.draw(1, data, updateData);
-                    }
-                    fb.roomsCollection.doc(this.hostplayer).update(updateData).then(function () {
-                        thisComponent.communicating = false;
-                    });
+                    case 2:
+                        this.askDeployOptions(this.thisPlayer.hand.length);
+                        break;// endPhase
                 }
             },
             bondPhase(data) {
@@ -1324,13 +1266,6 @@
                 }
 
             },
-            endPhase(data) {
-                let updateData = {
-                    currentTurn: data['currentTurn'] + 1,
-                    currentPhase: 0
-                };
-                fb.roomsCollection.doc(this.hostplayer).update(updateData);
-            },
             handClick(index) {
                 if (this.turn) {
                     switch (this.phase) {
@@ -1338,11 +1273,52 @@
                             this.bondFromHand(index);
                             break;
                         case 2:
-                            this.showDeployMenu(index);
+                            if (!this.optionmenu.active)
+                                this.askDeployOptions(index);
                             break;
                     }
                 }
             },
+
+            askDeployOptions(index) {
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [index]
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+                this.phase = -1;
+                this.centermessage = "";
+            },
+
+            optionMenuSelect(index) {
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [index]
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+                this.optionmenu.active = false;
+            },
+
             bondFromHand(index) {
                 let token = this.$store.state.token;
                 let serverConnection = this.$store.state.connection;
@@ -1362,166 +1338,7 @@
                 this.phase = -1;
                 this.centermessage = "";
             },
-            showDeployMenu(index) {
-                if (this.optionmenu.active)
-                    return;
 
-                this.optionmenu.active = true;
-                let thisComponent = this;
-                fb.roomsCollection.doc(this.hostplayer).get().then(async function (doc) {
-                    let data = doc.data();
-
-                    let promise = new Promise((resolve) => {
-                        resolve(thisComponent.fetchCardData(data.players[thisComponent.thisPlayer.username]
-                            .hand[index]));
-                    });
-                    let cardData = await promise;
-                    thisComponent.optionmenu.prompt = 'What would you like to do with ' + cardData.name + ': ' + cardData.title;
-                    let frontLine = data.players[thisComponent.thisPlayer.username].frontLine;
-                    let backLine = data.players[thisComponent.thisPlayer.username].backLine;
-                    let mana = data.players[thisComponent.thisPlayer.username].mana;
-
-                    // check if board already has a unit with the same name
-                    let inFrontLine = frontLine.filter(function(unit) {
-                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                    }).length > 0;
-
-                    let inBackLine = backLine.filter(function(unit) {
-                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                    }).length > 0;
-                    let sameNameOnBoard = inFrontLine || inBackLine;
-
-                    // check to see if we have the promotion cost
-                    let meetsPromoCost = !!cardData['promotion'];
-                    if (meetsPromoCost)
-                        meetsPromoCost = cardData['promotion'] <= mana;
-
-                    // check to see if we meet the deploy cost
-                    let meetsDeployCost = cardData['cost'] <= mana;
-
-                    let options = [];
-                    if (meetsDeployCost && !sameNameOnBoard) {
-                        options.push({
-                            name: 'Deploy To Front Line',
-                            onSelect: function () {
-                                thisComponent.createUnit(cardData.id).then(function(newUnit) {
-                                    let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                    let frontLine = data.players[thisComponent.thisPlayer.username].frontLine;
-
-                                    frontLine.push(newUnit);
-                                    hand.splice(index, 1);
-
-                                    let updateData = {};
-                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-
-                                    updateData[prefix+'hand'] = hand;
-                                    updateData[prefix+'frontLine'] = frontLine;
-                                    updateData[prefix+'mana'] = mana - cardData['cost'];
-
-
-                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                });
-                            }
-                        });
-                        options.push({
-                            name: 'Deploy To Back Line',
-                            onSelect: function () {
-                                thisComponent.createUnit(cardData.id).then(function(newUnit) {
-                                    let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                    let backLine = data.players[thisComponent.thisPlayer.username].backLine;
-
-                                    backLine.push(newUnit);
-                                    hand.splice(index, 1);
-
-                                    let updateData = {};
-                                    let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-
-                                    updateData[prefix + 'hand'] = hand;
-                                    updateData[prefix + 'backLine'] = backLine;
-                                    updateData[prefix + 'mana'] = mana - cardData['cost'];
-
-
-                                    fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                });
-                            }
-                        });
-                    }
-                    else if (sameNameOnBoard && meetsPromoCost)
-                        options.push({
-                            name: 'Promote',
-                            onSelect: function() {
-                                let updateData = {};
-                                let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                                if (inFrontLine) {
-                                    let unitToPromote = frontLine.filter(function(unit) {
-                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                                    })[0];
-
-                                    unitToPromote.cards.splice(0, 0, cardData);
-                                    updateData[prefix+'frontLine'] = frontLine;
-                                } else {
-                                    let unitToPromote = backLine.filter(function(unit) {
-                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                                    })[0];
-
-                                    unitToPromote.cards.splice(0, 0, cardData);
-                                    updateData[prefix+'backLine'] = backLine;
-                                }
-                                let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                for (let i = 0; i < hand.length; i++) {
-                                    if (hand[i].localeCompare(cardData.id) === 0) {
-                                        hand.splice(i, 1);
-                                        break;
-                                    }
-                                }
-                                updateData[prefix+'mana'] = mana - cardData['promotion'];
-                                thisComponent.draw(1, data, updateData);
-                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                            }
-                        });
-
-                    if (sameNameOnBoard && meetsDeployCost)
-                        options.push({
-                            name: 'Level Up',
-                            onSelect: function() {
-                                let updateData = {};
-                                let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                                if (inFrontLine) {
-                                    let unitToPromote = frontLine.filter(function(unit) {
-                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                                    })[0];
-
-                                    unitToPromote.cards.splice(0, 0, cardData);
-                                    updateData[prefix+'frontLine'] = frontLine;
-                                } else {
-                                    let unitToPromote = backLine.filter(function(unit) {
-                                        return unit.cards[0].name.localeCompare(cardData.name) === 0;
-                                    })[0];
-
-                                    unitToPromote.cards.splice(0, 0, cardData);
-                                    updateData[prefix+'backLine'] = backLine;
-                                }
-                                let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                for (let i = 0; i < hand.length; i++) {
-                                    if (hand[i].localeCompare(cardData.id) === 0) {
-                                        hand.splice(i, 1);
-                                        break;
-                                    }
-                                }
-                                updateData[prefix+'mana'] = mana - cardData['deploy'];
-                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                            }
-                        });
-
-                    options.push({
-                        name: 'Cancel',
-                        onSelect: function() {}
-                    });
-
-                    thisComponent.optionmenu.options = options;
-                });
-
-            },
             unitClicked(line, index) {
                 if (this.turn) {
                     switch (this.phase) {
@@ -1773,6 +1590,12 @@
                     case "handselect":
                         this.centermessage = options.handselect.message;
 
+                        break;
+
+                    case "optionmenu":
+                        this.optionmenu.options = options.optionmenu.options;
+                        this.optionmenu.prompt = options.optionmenu.prompt;
+                        this.optionmenu.active = true;
                         break;
                 }
             },

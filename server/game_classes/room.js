@@ -169,27 +169,31 @@ class Room {
             },
         };
         let player = this.turnPlayer;
-        let deck = player.deck.get();
+        let hand = player.hand.model;
 
         player.optionResults = [];
 
         // options to bond each card in their hand
-        for (let j = 0; j < deck.length; j++) {
+        for (let j = 0; j <= hand.length; j++) {
             player.optionResults.push({
                 func: "bond"
             });
         }
 
-        // option to skip bonding
-        player.optionResults.push({
-            func: "deploy"
-        });
         player.options = options;
     }
 
     deployPhase() {
-        // TODO : deploy phase
         this.currentPhase = 2;
+
+        this.turnPlayer.mana = this.turnPlayer.bondarea.length();
+
+        this.turnPlayer.deployHandSelect();
+    }
+
+    actionPhase() {
+        this.currentPhase = 3;
+
         this.sendGameState();
     }
 

@@ -17,6 +17,7 @@ class Player {
         this.retreat = null;
         this.boundless = null;
         this.deck = null;
+        this.mana = 0;
         this.hand = new Hand();
         this.frontline = new Line();
         this.backline = new Line();
@@ -25,6 +26,7 @@ class Player {
         this.MC = null;
         this.optionResults = [];
         this.options = {};
+        this.storedIndex = null;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -91,7 +93,9 @@ class Player {
 
     selectResult(index) {
         let optionResult = this.optionResults[index];
-        console.log("in selectresult");
+
+
+        console.log(JSON.stringify(optionResult.func));
 
         switch (optionResult.func) {
 
@@ -104,8 +108,31 @@ class Player {
                 break;
 
             case "bond":
-                console.log("made it to the switch");
                 this.bond(index);
+                break;
+
+            case "deployoptions":
+                this.sendDeployOptions(index);
+                break;
+
+            case "deployfront":
+                this.deploy(this.frontline);
+                break;
+
+            case "deployback":
+                this.deploy(this.backline);
+                break;
+
+            case "promote":
+                this.promote();
+                break;
+
+            case "levelup":
+                this.levelup();
+                break;
+
+            case "canceldeploy":
+                this.deployHandSelect();
                 break;
 
             case "null":
@@ -113,6 +140,131 @@ class Player {
                 this.optionResults = [];
                 break;
         }
+    }
+
+    deploy(line) {
+        let cardCopy = this.hand.grab(this.storedIndex);
+
+        line.deploy(new Unit(cardCopy));
+
+        this.mana -= cardCopy.get()['cost'];
+
+        this.deployHandSelect();
+
+    }
+
+    promote() {
+        let cardCopy = this.hand.grab(this.storedIndex);
+
+        if (this.frontline.contains(cardCopy.get().name)) {
+            this.frontline.levelup(cardCopy);
+        } else if (this.backline.contains(cardCopy.get().name)) {
+            this.backline.levelup(cardCopy);
+        } else {
+            return;
+        }
+
+        this.draw(1);
+
+        this.mana -= cardCopy['promotion'];
+
+        this.deployHandSelect();
+    }
+
+    levelup() {
+        let cardCopy = this.hand.grab(this.storedIndex);
+
+        if (this.frontline.contains(cardCopy.get().name)) {
+            this.frontline.levelup(cardCopy);
+        } else if (this.backline.contains(cardCopy.get().name)) {
+            this.backline.levelup(cardCopy);
+        } else {
+            return;
+        }
+
+        this.mana -= cardCopy['cost'];
+
+        this.deployHandSelect();
+    }
+
+    deployHandSelect() {
+        console.log("running");
+        this.options = {
+            uiType: 'handselect',
+            handselect: {
+                message: 'click a card in your hand to deploy/promote/level up'
+            },
+        };
+
+        this.optionResults = [];
+
+        for (let i = 0; i <= this.hand.length(); i++) {
+            this.optionResults.push({
+                func: "deployoptions"
+            })
+        }
+
+        this.room.sendGameState();
+    }
+
+    sendDeployOptions(index) {
+
+        if (index === this.hand.model.length) {
+            this.room.actionPhase();
+            return;
+        }
+
+        this.storedIndex = index;
+
+        let cardData = this.hand.model[index].get();
+
+        console.log(JSON.stringify(cardData));
+
+        this.options = {
+            uiType: "optionmenu",
+            optionmenu: {
+                prompt: "What would you like to do with " + cardData.name,
+                options: []
+            }
+        };
+
+        this.optionResults = [];
+
+        let meetsDeployCost = cardData['cost'] <= this.mana;
+        let meetsPromoCost = cardData['promotion'] && cardData.promotion <= this.mana;
+        let isDeployed = this.backline.contains(cardData.name) || this.frontline.contains(cardData.name);
+
+        if (meetsDeployCost && !isDeployed) {
+            this.options.optionmenu.options.push("Deploy To Front Line");
+            this.options.optionmenu.options.push("Deploy To Back Line");
+            this.optionResults.push({
+                func: "deployfront"
+            });
+            this.optionResults.push({
+                func: "deployback"
+            });
+        }
+
+        if (meetsDeployCost && isDeployed) {
+            this.options.optionmenu.options.push("Level Up");
+            this.optionResults.push({
+                func: "levelup"
+            });
+        }
+
+        if (meetsPromoCost && isDeployed) {
+            this.options.optionmenu.options.push("Promote");
+            this.optionResults.push({
+                func: "promote"
+            });
+        }
+
+        this.options.optionmenu.options.push("Cancel");
+        this.optionResults.push({
+            func: "canceldeploy"
+        });
+
+        this.room.sendGameState();
     }
 
     initializeDeck(fb, activeCards) {
@@ -129,10 +281,9 @@ class Player {
         this.bondarea.push(this.hand.grab(index));
 
         // in the average case, advance to deploy phase directly after bonding
-        if (!special)
+        if (!special) {
             this.room.deployPhase();
-        this.options = {uiType: ""};
-        this.optionResults = [];
+        }
     }
 }
 

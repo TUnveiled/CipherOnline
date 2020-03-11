@@ -86,6 +86,10 @@ class Deck {
         }
 
     }
+
+    length() {
+        return this.model.length;
+    }
 }
 
 exports.Deck = Deck;

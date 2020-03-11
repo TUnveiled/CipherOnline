@@ -1,5 +1,3 @@
-var CardCopy = require('./CardCopy').CardCopy;
-
 class Unit {
     constructor(card, mc=false) {
         this.cards = [card];
@@ -17,6 +15,10 @@ class Unit {
             MC: this.mc,
             tapped: this.tapped
         }
+    }
+
+    levelup (newCard) {
+        this.cards.unshift(newCard);
     }
 
     untap() {

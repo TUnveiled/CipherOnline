@@ -516,6 +516,8 @@ wss.on('connection', ws => {
 
                 player = room.getPlayer(user);
 
+                console.log(JSON.stringify(player.options));
+
                 switch (player.options.uiType) {
                     case "cardSelect":
                         let max = player.options.cardselect.max;
@@ -528,7 +530,9 @@ wss.on('connection', ws => {
                         break;
 
                     case "handselect":
+                    case "optionmenu":
                         player.selectResult(message.contents.results[0]);
+                        break;
                 }
 
                 break;

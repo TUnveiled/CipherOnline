@@ -10,6 +10,10 @@ class BondArea {
         this.model.push(new Bond(card));
     }
 
+    length() {
+        return this.model.length;
+    }
+
     getClientVersion() {
         let bonds = [];
         this.model.forEach(function (bond) {
