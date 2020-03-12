@@ -28,6 +28,18 @@ class Unit {
     tap() {
         this.tapped = true;
     }
+
+    canAttack() {
+        return !this.tapped;
+    }
+
+    canMove() {
+        return !this.tapped;
+    }
+
+    getName() {
+        return this.cards[0].get().name;
+    }
 }
 
 exports.Unit = Unit;

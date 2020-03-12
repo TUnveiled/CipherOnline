@@ -7,6 +7,10 @@ class CardCopy {
     get() {
         return this.cardData;
     }
+
+    getClientVersionOfSupport() {
+        return this.cardData.id;
+    }
 }
 
 exports.CardCopy = CardCopy;

@@ -531,6 +531,7 @@ wss.on('connection', ws => {
 
                     case "handselect":
                     case "optionmenu":
+                    case "unitselect":
                         player.selectResult(message.contents.results[0]);
                         break;
                 }

@@ -4,7 +4,25 @@ class Line {
         this.model = [];
     }
 
+    length() {
+        return this.model.length;
+    }
+
     deploy(unit) {
+        this.model.push(unit);
+    }
+
+    getUnit(index) {
+        return this.model[index];
+    }
+
+    remove(index) {
+        let temp = this.model[index];
+        this.model.splice(index, 1);
+        return temp;
+    }
+
+    add(unit) {
         this.model.push(unit);
     }
 

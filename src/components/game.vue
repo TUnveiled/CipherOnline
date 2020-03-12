@@ -115,7 +115,7 @@
                                     <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                 </div>
                                 <unit :oref="unit" :cardref="seenCards[unit.cards[0]]"
-                                      :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackBackLine "
+                                      :canselect="actionState.validTargets[index - oppPlayer.frontLine.length]"
                                       @hover="setInfoCard" v-else
                                       @click="unitClicked(oppPlayer.backLine, index)"></unit>
                             </td>
@@ -149,7 +149,7 @@
                                         <a v-if="fetchCardData(unit.cards[0])">Loading...</a>
                                     </div>
                                     <unit :oref="unit" :cardref="seenCards[unit.cards[0]]"
-                                          :canselect="turn && attackState.active && attackState.step < 1 && attackState.canAttackFrontLine"
+                                          :canselect="actionState.validTargets[index]"
                                           @hover="setInfoCard" v-else
                                           @click="unitClicked(oppPlayer.frontLine, index)"></unit>
                                 </td>
@@ -335,6 +335,11 @@
                     selectedDefender: null, // the index of the unit being attacked
                     defendingFrom: null, // the line of the unit being attacked
                     step: -1 // 0 : declaration, 1 : skills,  2 : supp, 3 : supp skills, 4 : crit, 5 : evade, 6 : result
+                },
+                actionState: {
+                    alliedUnits: false,
+                    enemyUnits: false,
+                    validTargets: []
                 },
                 mana: 0, // remaining mana of the turn player
                 phase: -1, // the current phase of turn
@@ -1344,15 +1349,42 @@
                     switch (this.phase) {
                         case 3:
                             if ((line === this.thisPlayer.frontLine || line === this.thisPlayer.backLine)
-                                    && !this.attackState.active)
-                                this.showActionMenu(line, index);
+                                    && this.actionState.alliedUnits)
+                                this.askActionOptions(line, index);
                             else if ((line === this.oppPlayer.frontLine || line === this.oppPlayer.backLine)
-                                    && this.attackState && this.attackState.step === 0)
+                                    && this.actionState.enemyUnits)
                                 this.selectAttackTarget(line, index);
                             break;
                     }
                 }
             },
+
+            askActionOptions(line, index) {
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
+
+                let trueIndex = index;
+                if (line === this.thisPlayer.backLine) {
+                    trueIndex += this.thisPlayer.frontLine.length;
+                }
+
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [trueIndex]
+                        }
+                    };
+
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+                this.phase = -1;
+                this.centermessage = "";
+            },
+
             showActionMenu(line, index) {
                 if (this.optionmenu.active)
                     return;
@@ -1468,37 +1500,64 @@
                 });
             },
             selectAttackTarget(line, index) {
-                this.attackState.defendingFrom = (line === this.oppPlayer.backLine) ?
-                    "b" : "f";
-                this.attackState.selectedDefender = index;
 
-                let attackState = JSON.parse(JSON.stringify(this.attackState));
+                let token = this.$store.state.token;
+                let serverConnection = this.$store.state.connection;
 
-                attackState.step = 2; // support
-
-                let frontLine = this.thisPlayer.frontLine;
-                let backLine = this.thisPlayer.backLine;
-                let unit;
-
-                if (attackState.attackingFrom.localeCompare("f") === 0) {
-                    unit = frontLine[this.attackState.selectedAttacker];
-                    unit.tapped = true;
-                } else if (attackState.attackingFrom.localeCompare("b") === 0) {
-                    unit = backLine[this.attackState.selectedAttacker];
-                    unit.tapped = true;
-                } else  {
-                    alert("An error occurred, try again");
-                    return;
+                let trueIndex = index;
+                if (line === this.oppPlayer.backLine) {
+                    trueIndex += this.oppPlayer.frontLine.length;
                 }
 
-                let updateData = {
-                    attackState: attackState
-                };
-                let prefix = 'players.' + this.thisPlayer.username + '.';
-                updateData[prefix+'frontLine'] = frontLine;
-                updateData[prefix+'backLine'] = backLine;
+                function foo() {
+                    let message = {
+                        type: "selection",
+                        contents: {
+                            token: token,
+                            results: [trueIndex]
+                        }
+                    };
 
-                fb.roomsCollection.doc(this.hostplayer).update(updateData);
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                pf.checkConnection(foo, this);
+                this.phase = -1;
+                this.centermessage = "";
+                this.actionState.enemyUnits = false;
+                this.actionState.validTargets = [];
+
+                // this.attackState.defendingFrom = (line === this.oppPlayer.backLine) ?
+                //     "b" : "f";
+                // this.attackState.selectedDefender = index;
+                //
+                // let attackState = JSON.parse(JSON.stringify(this.attackState));
+                //
+                // attackState.step = 2; // support
+                //
+                // let frontLine = this.thisPlayer.frontLine;
+                // let backLine = this.thisPlayer.backLine;
+                // let unit;
+                //
+                // if (attackState.attackingFrom.localeCompare("f") === 0) {
+                //     unit = frontLine[this.attackState.selectedAttacker];
+                //     unit.tapped = true;
+                // } else if (attackState.attackingFrom.localeCompare("b") === 0) {
+                //     unit = backLine[this.attackState.selectedAttacker];
+                //     unit.tapped = true;
+                // } else  {
+                //     alert("An error occurred, try again");
+                //     return;
+                // }
+                //
+                // let updateData = {
+                //     attackState: attackState
+                // };
+                // let prefix = 'players.' + this.thisPlayer.username + '.';
+                // updateData[prefix+'frontLine'] = frontLine;
+                // updateData[prefix+'backLine'] = backLine;
+                //
+                // fb.roomsCollection.doc(this.hostplayer).update(updateData);
 
             },
             checkSupports(data) {
@@ -1590,6 +1649,16 @@
                     case "handselect":
                         this.centermessage = options.handselect.message;
 
+                        break;
+
+                    case "unitselect":
+                        this.centermessage = options.unitselect.message;
+
+                        this.actionState.alliedUnits = options.unitselect.alliedUnits;
+                        this.actionState.enemyUnits = options.unitselect.enemyUnits;
+                        if (this.actionState.enemyUnits) {
+                            this.actionState.validTargets = options.unitselect.validTargets;
+                        }
                         break;
 
                     case "optionmenu":

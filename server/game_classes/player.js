@@ -22,6 +22,7 @@ class Player {
         this.frontline = new Line();
         this.backline = new Line();
         this.bondarea = new BondArea();
+        this.support = null;
         this.rps = 'n';
         this.MC = null;
         this.optionResults = [];
@@ -131,6 +132,21 @@ class Player {
                 this.levelup();
                 break;
 
+            case "getactions":
+                this.sendActions(index);
+                break;
+
+            case "getpotattopt":
+                this.sendAttackOptions();
+                break;
+
+            case "move":
+                this.move();
+                break;
+
+            case "attacktarget":
+                this.attackTarget(index);
+
             case "canceldeploy":
                 this.deployHandSelect();
                 break;
@@ -166,7 +182,7 @@ class Player {
 
         this.draw(1);
 
-        this.mana -= cardCopy['promotion'];
+        this.mana -= cardCopy.get()['promotion'];
 
         this.deployHandSelect();
     }
@@ -182,7 +198,7 @@ class Player {
             return;
         }
 
-        this.mana -= cardCopy['cost'];
+        this.mana -= cardCopy.get()['cost'];
 
         this.deployHandSelect();
     }
@@ -203,6 +219,32 @@ class Player {
                 func: "deployoptions"
             })
         }
+
+        this.room.sendGameState();
+    }
+
+    actionUnitSelect() {
+        let options = {
+            uiType: 'unitselect',
+            unitselect: {
+                message: 'click an allied unit in the play area to see the actions that unit can take',
+                alliedUnits: true,
+                enemyUnits: false
+            },
+        };
+
+        let lineLengths = this.frontline.length() + this.backline.length();
+
+        this.optionResults = [];
+
+        // options to bond each card in their hand
+        for (let j = 0; j <= lineLengths; j++) {
+            this.optionResults.push({
+                func: "getactions"
+            });
+        }
+
+        this.options = options;
 
         this.room.sendGameState();
     }
@@ -233,6 +275,8 @@ class Player {
         let meetsDeployCost = cardData['cost'] <= this.mana;
         let meetsPromoCost = cardData['promotion'] && cardData.promotion <= this.mana;
         let isDeployed = this.backline.contains(cardData.name) || this.frontline.contains(cardData.name);
+
+        console.log(cardData['cost'], this.mana);
 
         if (meetsDeployCost && !isDeployed) {
             this.options.optionmenu.options.push("Deploy To Front Line");
@@ -267,6 +311,89 @@ class Player {
         this.room.sendGameState();
     }
 
+    sendActions(index) {
+
+        this.storedIndex = index;
+
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
+                                             this.backline.getUnit(lineIndex);
+
+        this.options = {
+            uiType: "optionmenu",
+            optionmenu: {
+                prompt: "What would you like to do with " + selectedUnit.getName(),
+                options: []
+            }
+        };
+
+        this.optionResults = [];
+
+        let attackOptions = this.getAttackOptions(selectedUnit.cards[0].get(), inFrontLine);
+        let canAttackFrontLine = attackOptions[0];
+        let canAttackBackLine = attackOptions[1];
+        let canAttack = selectedUnit.canAttack();
+
+        if ((canAttackFrontLine || canAttackBackLine) && canAttack) {
+            this.options.optionmenu.options.push("Attack");
+            this.optionResults.push({
+                func: "getpotattopt"
+            });
+        }
+
+        if (selectedUnit.canMove()) {
+            this.options.optionmenu.options.push("Move");
+            this.optionResults.push({
+                func: "move"
+            });
+        }
+
+        this.room.sendGameState();
+    }
+
+    getAttackOptions(selectedUnitInfo, inFrontLine) {
+        let canAttackFrontLine, canAttackBackLine;
+
+        switch (selectedUnitInfo.range) {
+            case "-":
+                canAttackFrontLine = false;
+                canAttackBackLine = false;
+                break;
+            case "1":
+                canAttackFrontLine = inFrontLine;
+                canAttackBackLine = false;
+                break;
+            case "2":
+                canAttackFrontLine = !inFrontLine;
+                canAttackBackLine = inFrontLine;
+                break;
+            case "3":
+                canAttackBackLine = !inFrontLine;
+                canAttackFrontLine = false;
+                break;
+            case "1-2":
+                canAttackFrontLine = true;
+                canAttackBackLine = inFrontLine;
+                break;
+            case "1-3":
+                canAttackFrontLine = true;
+                canAttackBackLine = true;
+                break;
+            case "2-3":
+                canAttackFrontLine = !inFrontLine;
+                canAttackBackLine = true;
+                break;
+        }
+
+        canAttackBackLine &= (this.room.getOtherPlayer(this.name).backline.length() > 0);
+
+        return [canAttackFrontLine, canAttackBackLine];
+    }
+
     initializeDeck(fb, activeCards) {
         this.deck = new Deck(fb, activeCards);
     }
@@ -278,6 +405,12 @@ class Player {
 
     bond(index, special) {
         // move card from hand to bonds
+
+        if (index >= this.hand.length()) {
+            this.room.deployPhase();
+            return;
+        }
+
         this.bondarea.push(this.hand.grab(index));
 
         // in the average case, advance to deploy phase directly after bonding
@@ -285,6 +418,82 @@ class Player {
             this.room.deployPhase();
         }
     }
+
+    sendAttackOptions() {
+
+        let index = this.storedIndex;
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
+            this.backline.getUnit(lineIndex);
+
+        let attackOptions = this.getAttackOptions(selectedUnit.cards[0].get(), inFrontLine);
+        let canAttackFrontLine = attackOptions[0];
+        let canAttackBackLine = attackOptions[1];
+
+        let enemyPlayer = this.room.getOtherPlayer(this.name);
+
+        this.options = {
+            uiType: 'unitselect',
+            unitselect: {
+                message: 'click the unit you would like to attack',
+                alliedUnits: false,
+                enemyUnits: true,
+                validTargets: []
+            },
+        };
+
+        this.optionResults = [];
+
+        // options to bond each card in their hand
+        for (let j = 0; j <= enemyPlayer.frontline.length(); j++) {
+            this.options.unitselect.validTargets.push(canAttackFrontLine);
+            this.optionResults.push({
+                func: (canAttackFrontLine) ? "attacktarget" : "invalidtarget"
+            });
+        }
+
+        for (let j = 0; j <= enemyPlayer.backline.length(); j++) {
+            this.options.unitselect.validTargets.push(canAttackBackLine);
+            this.optionResults.push({
+                func: (canAttackBackLine) ? "attacktarget" : "invalidtarget"
+            });
+        }
+
+        this.room.sendGameState();
+    }
+
+    move() {
+        let index = this.storedIndex;
+
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        if (inFrontLine) {
+            this.backline.add(this.frontline.remove(lineIndex));
+        } else {
+            this.frontline.add(this.backline.remove(lineIndex));
+        }
+
+        this.actionUnitSelect();
+
+    }
+
+    attackTarget(defenderIndex) {
+
+        this.room.resolveAttack(this.storedIndex, defenderIndex);
+    }
+
+    flipForSupport() {
+        this.support = this.deck.draw();
+    }
+
+
 }
 
 exports.Player = Player;

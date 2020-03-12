@@ -194,6 +194,8 @@ class Room {
     actionPhase() {
         this.currentPhase = 3;
 
+        this.turnPlayer.actionUnitSelect();
+
         this.sendGameState();
     }
 
@@ -207,7 +209,7 @@ class Room {
             let thisPlayer = { // variables pertaining to the logged in player's game state
                 frontLine: this.players[thisIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
                 backLine: this.players[thisIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
-                // support: null, // id of the current supporting card
+                support: (this.players[thisIndex].support) ? this.players[thisIndex].support.getClientVersionOfSupport() : null,
                 deck: this.players[thisIndex].deck.get().length, // number of cards in the deck
                 // retreat: [], // array of card IDs representing the retreat pile
                 // boundless: [], // not currently used
@@ -221,7 +223,7 @@ class Room {
             let oppPlayer = {
                 frontLine: this.players[oppIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
                 backLine: this.players[oppIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
-                // support: null, // id of the current supporting card
+                support: (this.players[oppIndex].support) ? this.players[oppIndex].support.getClientVersionOfSupport() : null, // id of the current supporting card
                 deck: this.players[oppIndex].deck.get().length, // number of cards in the deck
                 // retreat: [], // array of card IDs representing the retreat pile
                 // boundless: [], // not currently used
@@ -250,6 +252,26 @@ class Room {
             this.players[i].socket.send(JSON.stringify(response));
 
         }
+    }
+
+    getOtherPlayer(playerName) {
+        if (playerName === this.players[0].name) {
+            return this.players[1];
+        } else {
+            return this.players[0];
+        }
+    }
+
+    resolveAttack(attackerIndex, defenderIndex) {
+        let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
+
+        defendingPlayer.storedIndex = defenderIndex;
+
+        //
+        this.turnPlayer.flipForSupport();
+        defendingPlayer.flipForSupport();
+
+        this.sendGameState();
     }
 
 
