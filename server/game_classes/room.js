@@ -150,8 +150,10 @@ class Room {
     beginningPhase() {
         this.currentPhase = 0;
 
+        this.getOtherPlayer(this.turnPlayer.name).checkForForcedMarch();
+
         if (this.currentTurn > 1) {
-            this.turnPlayer.draw();
+            this.turnPlayer.draw(1);
         }
 
         this.turnPlayer.untapAll();
@@ -181,6 +183,8 @@ class Room {
         }
 
         player.options = options;
+
+        this.sendGameState();
     }
 
     deployPhase() {
@@ -199,6 +203,18 @@ class Room {
         this.sendGameState();
     }
 
+    endPhase() {
+        this.currentPhase = 4;
+        this.currentTurn++;
+
+        this.turnPlayer.options = {};
+        this.turnPlayer.optionResults = [];
+
+        this.turnPlayer = this.getOtherPlayer(this.turnPlayer.name);
+
+        this.beginningPhase();
+    }
+
     sendGameState() {
         for (let i = 0; i < 2; i++) {
 
@@ -209,10 +225,10 @@ class Room {
             let thisPlayer = { // variables pertaining to the logged in player's game state
                 frontLine: this.players[thisIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
                 backLine: this.players[thisIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
-                support: (this.players[thisIndex].support) ? this.players[thisIndex].support.getClientVersionOfSupport() : null,
+                support: (this.players[thisIndex].support) ? this.players[thisIndex].support.getClientVersionOfSupport() : "0",
                 deck: this.players[thisIndex].deck.get().length, // number of cards in the deck
-                // retreat: [], // array of card IDs representing the retreat pile
-                // boundless: [], // not currently used
+                retreat: this.players[thisIndex].retreat.getClientVersion(), // array of card IDs representing the retreat pile
+                boundless: this.players[thisIndex].boundless.getClientVersion(), // not currently used
                 orbs: this.players[thisIndex].orbArea.getClientVersion(), // number of orbs remaining
                 // knownOrbs: [], // number of orbs known to this player
                 // faceUpOrbs: [],
@@ -223,10 +239,10 @@ class Room {
             let oppPlayer = {
                 frontLine: this.players[oppIndex].frontline.getClientVersion(), // array of "Unit" objects representing the front line
                 backLine: this.players[oppIndex].backline.getClientVersion(), // array of "Unit" objects representing the back line
-                support: (this.players[oppIndex].support) ? this.players[oppIndex].support.getClientVersionOfSupport() : null, // id of the current supporting card
+                support: (this.players[oppIndex].support) ? this.players[oppIndex].support.getClientVersionOfSupport() : "0", // id of the current supporting card
                 deck: this.players[oppIndex].deck.get().length, // number of cards in the deck
-                // retreat: [], // array of card IDs representing the retreat pile
-                // boundless: [], // not currently used
+                retreat: this.players[oppIndex].retreat.getClientVersion(),
+                boundless: this.players[oppIndex].boundless.getClientVersion(),
                 orbs: this.players[oppIndex].orbArea.getClientVersion(), // number of orbs remaining
                 // faceUpOrbs: [],
                 bonds: this.players[oppIndex].bondarea.getClientVersion(), // array representing this player's bonds
@@ -267,13 +283,77 @@ class Room {
 
         defendingPlayer.storedIndex = defenderIndex;
 
-        //
+        // add support cards
         this.turnPlayer.flipForSupport();
         defendingPlayer.flipForSupport();
+
+        // ask the attacker if they want to crit
+        this.turnPlayer.options = {
+            uiType: 'binaryoption',
+            binaryoption: {
+                prompt: `Would you like to perform a critical hit? Attacker: ${this.turnPlayer.getSelectedUnit().getName()}`
+                        + ` (${this.turnPlayer.getSelectedUnit().getAttack()}), Defender: ${defendingPlayer.getSelectedUnit().getName()}`
+                        + ` (${defendingPlayer.getSelectedUnit().getAttack()})`
+            }
+        };
+
+        this.turnPlayer.optionResults = [
+            {func: "crit"},
+            {func: "crit"}
+        ];
 
         this.sendGameState();
     }
 
+    askEvade() {
+        let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
+
+        // ask the attacker if they want to crit
+        defendingPlayer.options = {
+            uiType: 'binaryoption',
+            binaryoption: {
+                prompt: `Would you like to perform an evade? Attacker: ${this.turnPlayer.getSelectedUnit().getName()}`
+                    + ` (${this.turnPlayer.getSelectedUnit().getAttack()}), Defender: ${defendingPlayer.getSelectedUnit().getName()}`
+                    + ` (${defendingPlayer.getSelectedUnit().getAttack()})`
+            }
+        };
+
+        defendingPlayer.optionResults = [
+            {func: "evade"},
+            {func: "evade"}
+        ];
+
+        this.sendGameState();
+    }
+
+    mathAttackResult(evade=false) {
+        let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
+        let attackingUnit = this.turnPlayer.getSelectedUnit();
+        let defendingUnit = defendingPlayer.getSelectedUnit();
+
+        if (!evade) {
+            let attackerWins = attackingUnit.getAttack() >= defendingUnit.getAttack();
+            if (attackerWins) {
+                defendingPlayer.destroySelectedUnit();
+            }
+        }
+
+        defendingPlayer.discardSupport();
+        this.turnPlayer.discardSupport();
+
+        delete attackingUnit.modifiers.attack;
+        delete defendingUnit.modifiers.attack;
+
+        this.getOtherPlayer(this.turnPlayer.name).checkForForcedMarch();
+
+        this.turnPlayer.actionUnitSelect();
+    }
+
+    lose(losingPlayer) {
+        let winningPlayer = this.getOtherPlayer(losingPlayer.name);
+        winningPlayer;
+        // TODO
+    }
 
 }
 exports.Room = Room;

@@ -10,8 +10,12 @@ class OrbArea {
         this.model.push(new Orb(card));
     }
 
-    pop(card) {
-        card; // TODO
+    pop() {
+        return this.model.pop().getCard(); // TODO
+    }
+
+    length() {
+        return this.model.length;
     }
 
     getClientVersion() {

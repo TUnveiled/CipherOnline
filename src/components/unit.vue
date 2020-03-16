@@ -1,6 +1,6 @@
-    <template>
-        <div class="unit" v-on:mouseenter="onHover" v-on:click="onClick">
-            <div v-if="oref" :style="
+<template>
+    <div class="unit" v-on:mouseenter="onHover" v-on:click="onClick">
+        <div v-if="oref" :style="
                 (oref.tapped) ? 'min-width: 80px;' : ''
                 ">
             <div class="title" v-if="oref.MC">MC</div>
@@ -8,10 +8,18 @@
                 ((oref.tapped) ? 'transform: rotate(90deg);' : '') +
                 ((canselect === true) ? 'border: 3px solid green' : 'border: 1px solid black')">
             <div class="stack" v-if="oref.cards.length > 0">{{oref.cards.length}}</div>
-            <div class="attack">{{cardref.attack}}</div>
+            <div class="attack" v-if="!oref.modifiers['attack']">{{cardref.attack}}</div>
+            <div class="attack" v-else-if="oref.modifiers['attack'] > 0"
+                 style="color: deepskyblue; text-shadow: 1px 1px darkblue;">
+                {{cardref.attack + oref.modifiers['attack']}}
+            </div>
+            <div class="attack" v-else-if="oref.modifiers['attack'] < 0"
+                 style="color: lightcoral; text-shadow: 1px 1px darkred;">
+                {{cardref.attack + oref.modifiers['attack']}}
             </div>
         </div>
-    </template>
+    </div>
+</template>
 
     <script>
         export default {

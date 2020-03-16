@@ -521,6 +521,11 @@ wss.on('connection', ws => {
                 switch (player.options.uiType) {
                     case "cardSelect":
                         let max = player.options.cardselect.max;
+
+                        if (message.contents.results.length === 0) {
+                            player.noSelection();
+                        }
+
                         for (let i = 0; i < max && i < message.contents.results.length; i++) {
                             player.selectResult(message.contents.results[i]);
                         }

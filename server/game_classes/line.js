@@ -16,6 +16,10 @@ class Line {
         return this.model[index];
     }
 
+    tap(index) {
+        this.model[index].tap();
+    }
+
     remove(index) {
         let temp = this.model[index];
         this.model.splice(index, 1);

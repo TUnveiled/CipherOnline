@@ -1,5 +1,6 @@
 const OrbArea = require("./orbarea").OrbArea;
 const BondArea = require("./bondarea").BondArea;
+const Discard = require("./discard").Discard;
 const Deck = require('./deck').Deck;
 const Line = require('./line').Line;
 const Unit = require('./unit').Unit;
@@ -14,8 +15,8 @@ class Player {
         this.isHost = isHost;
         this.isReady = false;
         this.orbArea = new OrbArea();
-        this.retreat = null;
-        this.boundless = null;
+        this.retreat = new Discard();
+        this.boundless = new Discard();
         this.deck = null;
         this.mana = 0;
         this.hand = new Hand();
@@ -28,6 +29,7 @@ class Player {
         this.optionResults = [];
         this.options = {};
         this.storedIndex = null;
+        this.noSelection = () => {};
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -63,6 +65,7 @@ class Player {
     draw(num) {
         for (let i = 0; i < num; i++) {
             this.hand.push(this.deck.draw());
+            this.checkForEmptyDeck();
         }
     }
 
@@ -146,9 +149,30 @@ class Player {
 
             case "attacktarget":
                 this.attackTarget(index);
+                break;
 
             case "canceldeploy":
                 this.deployHandSelect();
+                break;
+
+            case "crit":
+                this.sendCritOptions(index);
+                break;
+
+            case "discardforcrit":
+                this.crit(index);
+                break;
+
+            case "evade":
+                this.sendEvadeOptions(index);
+                break;
+
+            case "discardforevade":
+                this.evade(index);
+                break;
+
+            case "cancelact":
+                this.actionUnitSelect();
                 break;
 
             case "null":
@@ -237,7 +261,7 @@ class Player {
 
         this.optionResults = [];
 
-        // options to bond each card in their hand
+        // options to select each unit in their lines plus one to end
         for (let j = 0; j <= lineLengths; j++) {
             this.optionResults.push({
                 func: "getactions"
@@ -313,6 +337,11 @@ class Player {
 
     sendActions(index) {
 
+        if (index === this.frontline.length() + this.backline.length()) {
+            this.room.endPhase();
+            return;
+        }
+
         this.storedIndex = index;
 
         let inFrontLine = (index < this.frontline.length());
@@ -320,8 +349,10 @@ class Player {
 
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
 
+
         let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
                                              this.backline.getUnit(lineIndex);
+
 
         this.options = {
             uiType: "optionmenu",
@@ -336,9 +367,9 @@ class Player {
         let attackOptions = this.getAttackOptions(selectedUnit.cards[0].get(), inFrontLine);
         let canAttackFrontLine = attackOptions[0];
         let canAttackBackLine = attackOptions[1];
-        let canAttack = selectedUnit.canAttack();
+        let canAttack = selectedUnit.canAttack() ;
 
-        if ((canAttackFrontLine || canAttackBackLine) && canAttack) {
+        if ((canAttackFrontLine || canAttackBackLine) && canAttack && this.room.currentTurn > 1) {
             this.options.optionmenu.options.push("Attack");
             this.optionResults.push({
                 func: "getpotattopt"
@@ -352,7 +383,24 @@ class Player {
             });
         }
 
+        this.options.optionmenu.options.push("Cancel");
+        this.optionResults.push({
+            func: "cancelact"
+        });
+
         this.room.sendGameState();
+    }
+
+    getSelectedUnit() {
+        let index = this.storedIndex;
+
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        return (inFrontLine) ? this.frontline.getUnit(lineIndex) :
+            this.backline.getUnit(lineIndex);
     }
 
     getAttackOptions(selectedUnitInfo, inFrontLine) {
@@ -425,10 +473,7 @@ class Player {
         let inFrontLine = (index < this.frontline.length());
         // let backLine = !frontLine;
 
-        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
-
-        let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
-            this.backline.getUnit(lineIndex);
+        let selectedUnit = this.getSelectedUnit();
 
         let attackOptions = this.getAttackOptions(selectedUnit.cards[0].get(), inFrontLine);
         let canAttackFrontLine = attackOptions[0];
@@ -474,9 +519,13 @@ class Player {
 
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
 
+
+
         if (inFrontLine) {
+            this.frontline.tap(lineIndex);
             this.backline.add(this.frontline.remove(lineIndex));
         } else {
+            this.backline.tap(lineIndex);
             this.frontline.add(this.backline.remove(lineIndex));
         }
 
@@ -485,15 +534,231 @@ class Player {
     }
 
     attackTarget(defenderIndex) {
-
+        this.getSelectedUnit().tap();
         this.room.resolveAttack(this.storedIndex, defenderIndex);
     }
 
     flipForSupport() {
         this.support = this.deck.draw();
+        this.checkForEmptyDeck();
+
+        let index = this.storedIndex;
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
+            this.backline.getUnit(lineIndex);
+
+        selectedUnit.addModifier('attack', this.support.get().support);
     }
 
+    sendCritOptions(skipCrit) {
 
+        if (!skipCrit) {
+
+            let selectedUnit = this.getSelectedUnit();
+
+            let options = {
+                uiType: 'cardSelect',
+                cardselect: {
+                    active: true, // whether the window is visible
+                    options: [], // the cards that can be selected
+                    min: 0, // the minimum number of cards that need to be selected
+                    max: 1, // the max number of cards that can be selected
+                    message: 'Select a card to discard to crit or select no cards to cancel', // prompt for selection
+                },
+            };
+
+
+            this.optionResults = [];
+
+
+            for (let j = 0; j < this.hand.length(); j++) {
+
+                let card = this.hand.model[j].get();
+                let option = {
+                    id: card['id'],
+                    valid: selectedUnit.checkName(card['name']),
+                    selected: false
+                };
+
+                options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
+
+                this.optionResults.push({
+                    func: "discardforcrit"
+                });
+            }
+            this.options = options;
+            this.noSelection = () => {
+                this.options = {};
+                this.optionResults = [];
+
+                this.room.askEvade();
+            };
+            this.room.sendGameState();
+
+        } else {
+            this.options = {};
+            this.optionResults = [];
+
+            this.room.askEvade();
+        }
+
+    }
+
+    crit(handIndex) {
+
+        let selectedUnit = this.getSelectedUnit();
+
+        let selectedDiscard = this.hand.model[handIndex].get();
+
+        if (selectedUnit.checkName(selectedDiscard.name)) {
+            this.retreat.push(this.hand.grab(handIndex));
+
+            selectedUnit.modifiers['attack'] += selectedUnit.getAttack();
+        }
+
+        this.options = {};
+        this.optionResults = [];
+
+        this.room.askEvade();
+    }
+
+    evade(handIndex) {
+        let selectedUnit = this.getSelectedUnit();
+        let evade = false;
+
+        let selectedDiscard = this.hand.model[handIndex].get();
+
+        if (selectedUnit.checkName(selectedDiscard.name)) {
+            this.retreat.push(this.hand.grab(handIndex));
+            evade = true;
+        }
+
+        this.options = {};
+        this.optionResults = [];
+
+        this.room.mathAttackResult(evade);
+    }
+
+    sendEvadeOptions(skipEvade) {
+        if (!skipEvade) {
+
+            let selectedUnit = this.getSelectedUnit();
+
+            let options = {
+                uiType: 'cardSelect',
+                cardselect: {
+                    active: true, // whether the window is visible
+                    options: [], // the cards that can be selected
+                    min: 0, // the minimum number of cards that need to be selected
+                    max: 1, // the max number of cards that can be selected
+                    message: 'Select a card to discard to evade or select no cards to cancel', // prompt for selection
+                },
+            };
+
+            this.optionResults = [];
+
+            for (let j = 0; j < this.hand.length(); j++) {
+
+                let card = this.hand.model[j].get();
+                let option = {
+                    id: card['id'],
+                    valid: selectedUnit.checkName(card['name']),
+                    selected: false
+                };
+
+                options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
+
+                this.optionResults.push({
+                    func: "discardforevade"
+                });
+            }
+            this.options = options;
+            this.noSelection = () => {
+                this.options = {};
+                this.optionResults = [];
+
+                this.room.mathAttackResult();
+            };
+            this.room.sendGameState();
+
+        } else {
+            this.options = {};
+            this.optionResults = [];
+
+            this.room.mathAttackResult();
+        }
+
+    }
+
+    destroySelectedUnit() {
+
+        let index = this.storedIndex;
+
+        let inFrontLine = (index < this.frontline.length());
+        // let backLine = !frontLine;
+
+        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
+
+        let selectedUnit =  (inFrontLine) ? this.frontline.getUnit(lineIndex) :
+            this.backline.getUnit(lineIndex);
+
+        if (selectedUnit.mc) {
+            this.takeOrb();
+        } else {
+            let cards = selectedUnit.cards;
+
+            // move the unit's cards to retreat
+            for (let i = 0; i < cards.length; i++) {
+                this.retreat.push(cards[i]);
+            }
+
+            // remove the unit from the line
+            if (inFrontLine) {
+                this.frontline.remove(lineIndex);
+            } else {
+                this.backline.remove(lineIndex);
+            }
+
+        }
+    }
+
+    discardSupport() {
+        this.retreat.push(this.support);
+        this.support = null;
+    }
+
+    takeOrb() {
+        if (this.orbArea.length()) {
+            this.hand.push(this.orbArea.pop());
+        } else {
+            this.room.lose(this);
+        }
+    }
+
+    checkForEmptyDeck() {
+        if (this.deck.length() === 0) {
+            while (this.retreat.length())  {
+                this.deck.push(this.retreat.pop());
+            }
+
+            this.deck.shuffle();
+
+            if (this.deck.length() === 0) {
+                this.room.lose(this);
+            }
+        }
+    }
+
+    checkForForcedMarch() {
+        if (this.frontline.length() === 0) {
+            this.frontline = this.backline;
+            this.backline = new Line();
+        }
+    }
 }
 
 exports.Player = Player;

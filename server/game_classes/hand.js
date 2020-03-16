@@ -1,6 +1,6 @@
 class Hand {
     constructor() {
-        this.model = []
+        this.model = [];
     }
 
     push(element) {

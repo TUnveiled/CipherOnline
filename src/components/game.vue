@@ -95,15 +95,12 @@
                 <tbody>
                 <tr>
                     <td> <!-- Opponent's retreat pile -->
-                        <div v-if="seenCards[oppPlayer.retreat[0]]">
-                            <cardstack v-if="oppPlayer.retreat[0]" title="Retreat" :count="oppPlayer.retreat.length"
-                                       :imageref="seenCards[oppPlayer.retreat[0]].imageref"></cardstack>
+                        <div v-if="oppPlayer.retreat.count">
+                            <cardstack title="Retreat" :count="oppPlayer.retreat.count"
+                                       :imageref="oppPlayer.retreat.imageref"></cardstack>
                         </div>
                         <div v-else>
-                            <div v-if="oppPlayer.retreat.length === 0">
-                                <cardstack title="Retreat" :count="0"></cardstack>
-                            </div>
-                            <div v-else-if="fetchCardData(oppPlayer.retreat[0])">Loading...</div>
+                            <cardstack title="Retreat" :count="0"></cardstack>
                         </div>
                     </td>
                     <td> <!-- Opponent's back line -->
@@ -126,7 +123,7 @@
                         <a v-else>Back Line</a>
                     </td>
                     <td> <!-- Opponent's Boundless Area -->
-                        <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.length" :imageref="oppPlayer.boundless[0]['imageref']"></cardstack>
+                        <cardstack v-if="oppPlayer.boundless[0]" title="Boundless" :count="oppPlayer.boundless.count" :imageref="oppPlayer.boundless.imageref"></cardstack>
                         <cardstack v-else title="Boundless" :count="0"></cardstack>
                     </td>
                     <td rowspan="2"> <!-- Opponent's Bond Area -->
@@ -169,8 +166,8 @@
                 <tr>
                     <td>
                         <!-- Opponent's Support Area -->
-                        <div v-if="oppPlayer.support">
-                            <div v-if="!seenCards[oppPlayer.support]"><a v-if="fetchCardData(oppPlayer.support)">Loading...</a></div>
+                        <div v-if="oppPlayer.support && oppPlayer.support !== '0'">
+                            <div v-if="!seenCards[oppPlayer.support] && oppPlayer.support === '0'"><a v-if="fetchCardData(oppPlayer.support)">Support</a></div>
                             <supportcard v-else :oref="seenCards[oppPlayer.support]"
                                          @hover="setInfoCard(seenCards[oppPlayer.support])"></supportcard>
                         </div>
@@ -182,30 +179,30 @@
                         <!-- Phase Buttons; Display current phase and allow phase to be changed
                              when appropriate -->
                         Phases<br>
-                        <button class="phasebutton" disabled :style="(phase === 0) ? 'background: lightgreen;' : ''">
+                        <button class="phasebutton" disabled :style="(phase === 0) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''">
                             Beginning
                         </button>
-                        <button class="phasebutton" disabled :style="(phase === 1) ? 'background: lightgreen;' : ''">
+                        <button class="phasebutton" disabled :style="(phase === 1) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''">
                             Bond
                         </button>
                         <button class="phasebutton" :disabled="!turn || phase !== 1"
-                                :style="(phase === 2) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                                :style="(phase === 2) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''" v-on:click="nextPhase">
                             Deploy
                         </button>
                         <button class="phasebutton" :disabled="!turn || phase !== 2"
-                                :style="(phase === 3) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                                :style="(phase === 3) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''" v-on:click="nextPhase">
                             Action
                         </button>
                         <button class="phasebutton" :disabled="!turn || phase !== 3 || attackState.active"
-                                :style="(phase === 4) ? 'background: lightgreen;' : ''" v-on:click="nextPhase">
+                                :style="(phase === 4) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''" v-on:click="nextPhase">
                             End
                         </button>
                         <br>{{centermessage}}
                     </td>
                     <td>
                         <!-- Your Support Area -->
-                        <div v-if="thisPlayer.support">
-                            <div v-if="!seenCards[thisPlayer.support]"><a v-if="fetchCardData(thisPlayer.support)">Loading...</a></div>
+                        <div v-if="thisPlayer.support && thisPlayer.support !== '0'">
+                            <div v-if="!seenCards[thisPlayer.support]"><a v-if="fetchCardData(thisPlayer.support)">Support</a></div>
                             <supportcard v-else :oref="seenCards[thisPlayer.support]"
                                          @hover="setInfoCard(seenCards[thisPlayer.support])">></supportcard>
                         </div>
@@ -247,7 +244,7 @@
                 </tr>
                 <tr>
                     <td> <!-- Your Boundless Area -->
-                        <cardstack v-if="thisPlayer.boundless[0]" title="Boundless" :count="thisPlayer.boundless.length" :imageref="thisPlayer.boundless[0]['imageref']"></cardstack>
+                        <cardstack v-if="thisPlayer.boundless[0]" title="Boundless" :count="thisPlayer.boundless.count" :imageref="thisPlayer.boundless.imageref"></cardstack>
                         <cardstack v-else title="Boundless" :count="0"></cardstack>
                     </td>
                     <td> <!-- Your Back Line -->
@@ -265,15 +262,12 @@
                         <a v-else>Back Line</a>
                     </td>
                     <td> <!-- Your Retreat Pile -->
-                        <div v-if="seenCards[thisPlayer.retreat[0]]">
-                            <cardstack v-if="thisPlayer.retreat[0]" title="Retreat" :count="thisPlayer.retreat.length"
-                                       :imageref="seenCards[thisPlayer.retreat[0]].imageref"></cardstack>
+                        <div v-if="thisPlayer.retreat.count">
+                            <cardstack title="Retreat" :count="thisPlayer.retreat.count"
+                                       :imageref="thisPlayer.retreat.imageref"></cardstack>
                         </div>
                         <div v-else>
-                            <div v-if="thisPlayer.retreat.length === 0">
-                                <cardstack title="Retreat" :count="0"></cardstack>
-                            </div>
-                            <div v-else-if="fetchCardData(thisPlayer.retreat[0])">Loading...</div>
+                            <cardstack title="Retreat" :count="0"></cardstack>
                         </div>
                     </td>
                 </tr>
@@ -378,8 +372,14 @@
                     backLine: [], // array of "Unit" objects representing the back line
                     support: null, // id of the current supporting card
                     deck: 0, // number of cards in the deck
-                    retreat: [], // array of card IDs representing the retreat pile
-                    boundless: [], // not currently used
+                    retreat: {
+                        count: 0,
+                        imageref: ""
+                    }, // array of card IDs representing the retreat pile
+                    boundless: {
+                        count: 0,
+                        imageref: ""
+                    }, // not currently used
                     orbs: 0, // number of orbs remaining
                     knownOrbs: [], // number of orbs known to this player
                     bonds: [], // array representing this player's bonds
@@ -392,8 +392,14 @@
                     backLine: [], // array of "Unit" objects representing the back line
                     support: null, // id of the current supporting card
                     deck: 0, // number of cards in the deck
-                    retreat: [], // array of card IDs representing the retreat pile
-                    boundless: [], // not currently used
+                    retreat: {
+                        count: 0,
+                        imageref: ""
+                    }, // array of card IDs representing the retreat pile
+                    boundless: {
+                        count: 0,
+                        imageref: ""
+                    }, // not currently used
                     orbs: 0, // number of orbs remaining
                     knownOrbs: [], // number of orbs known to this player
                     bonds: [], // array representing this player's bonds
@@ -973,6 +979,9 @@
                     case 2:
                         this.askDeployOptions(this.thisPlayer.hand.length);
                         break;// endPhase
+
+                    case 3:
+                        this.askActionOptions(this.thisPlayer.backLine, this.thisPlayer.backLine.length);
                 }
             },
             bondPhase(data) {
@@ -984,292 +993,6 @@
                 this.centermessage = 'click a card in your hand to deploy/promote/level up';
 
                 data; // TODO remove if not needed
-            },
-            actionPhase(data) {
-                if (!data.attackState.step)
-                    return;
-
-                switch (data.attackState.step) {
-                    case 2:
-                            if (data.players[this.thisPlayer.username].support == null) {
-                                // have yet to support
-                                let deck = data.players[this.thisPlayer.username].deck;
-                                let retreat = data.players[this.thisPlayer.username].retreat;
-                                let support = this._draw(deck);
-                                if (deck.length === 0) {
-                                    deck = retreat;
-                                    retreat = [];
-                                }
-                                let updateData = {};
-                                let prefix = 'players.' + this.thisPlayer.username + '.';
-                                updateData[prefix + 'deck'] = deck;
-                                updateData[prefix + 'retreat'] = retreat;
-                                updateData[prefix + 'support'] = support;
-                                fb.roomsCollection.doc(this.hostplayer).update(updateData);
-                                this.checkSupports(data);
-                            } else {
-                                this.checkSupports(data);
-                            }
-
-                        break;
-                    case 4:
-                        // crit
-                        if (!this.turn)
-                            return;
-                        if (!this.communicating) {
-                            this.communicating = true;
-                            let attackerName;
-                            let attack = data.attackState.attack;
-                            let defenderName;
-                            let defense = data.attackState.defense;
-                            if (data.attackState.attackingFrom.localeCompare("f") === 0) {
-                                // attacking from frontline
-                                attackerName = data.players[this.thisPlayer.username].
-                                    frontLine[data.attackState.selectedAttacker].cards[0].name;
-                            } else {
-                                // attacking from backline
-                                attackerName = data.players[this.thisPlayer.username].
-                                    backLine[data.attackState.selectedAttacker].cards[0].name;
-                            }
-                            if (data.attackState.defendingFrom.localeCompare("f") === 0) {
-                                // defending from frontline
-                                defenderName = data.players[this.oppPlayer.username].
-                                    frontLine[data.attackState.selectedDefender].cards[0].name;
-                            } else {
-                                // defending from backline
-                                defenderName = data.players[this.oppPlayer.username].
-                                    backLine[data.attackState.selectedDefender].cards[0].name;
-                            }
-
-                            this.binaryoption.prompt = "Would you like to crit?\n" +
-                                "Attacker : " + attackerName + " (" + attack + ")\n" +
-                                "Defender : " + defenderName + " (" + defense + ")";
-                            let thisComponent = this;
-                            this.binaryoption.yes = function () {
-                                thisComponent.cardselect.message = 'Choose a card to discard to crit or confirm' +
-                                    ' without selecting a card to cancel';
-                                thisComponent.cardselect.max = 1;
-                                thisComponent.cardselect.min = 0;
-                                thisComponent.cardselect.numSelected = 0;
-                                thisComponent.cardselect.options = [];
-                                data.players[thisComponent.thisPlayer.username].hand.forEach(function (cardID) {
-                                    let option = JSON.parse(JSON.stringify(thisComponent.seenCards[cardID]));
-                                    option.id = cardID;
-                                    option.valid = option.name === attackerName;
-                                    option.selected = false;
-                                    thisComponent.cardselect.options.push(option);
-                                });
-                                thisComponent.cardselect.confirm = function (selectedCards) {
-                                    if (selectedCards.length === 0) {
-                                        thisComponent.binaryoption.no();
-                                    } else {
-                                        let retreat = data.players[thisComponent.thisPlayer.username].retreat;
-                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                        attack = 2 * attack;
-
-                                        // discard
-                                        for(let i = 0; i < hand.length; i++ ){
-                                            if(hand[i].localeCompare(selectedCards[0].id) === 0){
-                                                retreat.push(hand[i]);
-                                                hand.splice(i,1);
-                                                break;
-                                            }
-                                        }
-                                        let prefix = 'players.'+thisComponent.thisPlayer.username+'.';
-                                        let updateData = {
-                                            'attackState.attack': attack,
-                                            'attackState.step': 5
-                                        };
-                                        updateData[prefix+'hand'] = hand;
-                                        updateData[prefix+'retreat'] = retreat;
-
-                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                        thisComponent.communicating = false;
-                                    }
-                                };
-                                thisComponent.cardselect.active=true;
-                            };
-                            this.binaryoption.no = function() {
-                                let updateData = {
-                                    'attackState.step': 5
-                                };
-
-                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                thisComponent.communicating = false;
-                            };
-                            this.binaryoption.active = true;
-                        }
-                        break;
-                    case 5:
-                        // evade
-                        if (this.turn)
-                            return;
-                        if (!this.communicating) {
-                            this.communicating = true;
-                            let attackerName;
-                            let attack = data.attackState.attack;
-                            let defenderName;
-                            let defense = data.attackState.defense;
-                            if (data.attackState.attackingFrom.localeCompare("f") === 0) {
-                                // attacking from frontline
-                                attackerName = data.players[this.oppPlayer.username].frontLine[data.attackState.selectedAttacker].cards[0].name;
-                            } else {
-                                // attacking from backline
-                                attackerName = data.players[this.oppPlayer.username].backLine[data.attackState.selectedAttacker].cards[0].name;
-                            }
-                            if (data.attackState.defendingFrom.localeCompare("f") === 0) {
-                                // defending from frontline
-                                defenderName = data.players[this.thisPlayer.username].frontLine[data.attackState.selectedDefender].cards[0].name;
-                            } else {
-                                // defending from backline
-                                defenderName = data.players[this.thisPlayer.username].backLine[data.attackState.selectedDefender].cards[0].name;
-                            }
-
-                            this.binaryoption.prompt = "Would you like to evade?\n" +
-                                "Attacker : " + attackerName + " (" + attack + ")\n" +
-                                "Defender : " + defenderName + " (" + defense + ")";
-                            let thisComponent = this;
-                            this.binaryoption.yes = function () {
-                                thisComponent.cardselect.message = 'Choose a card to discard to evade or confirm' +
-                                    ' without selecting a card to cancel';
-                                thisComponent.cardselect.max = 1;
-                                thisComponent.cardselect.min = 0;
-                                thisComponent.cardselect.numSelected = 0;
-                                thisComponent.cardselect.options = [];
-                                data.players[thisComponent.thisPlayer.username].hand.forEach(function (cardID) {
-                                    let option = JSON.parse(JSON.stringify(thisComponent.seenCards[cardID]));
-                                    option.id = cardID;
-                                    option.valid = option.name === defenderName;
-                                    option.selected = false;
-                                    thisComponent.cardselect.options.push(option);
-                                });
-                                thisComponent.cardselect.confirm = function (selectedCards) {
-                                    if (selectedCards.length === 0) {
-                                        thisComponent.binaryoption.no();
-                                    } else {
-                                        let retreat = data.players[thisComponent.thisPlayer.username].retreat;
-                                        let hand = data.players[thisComponent.thisPlayer.username].hand;
-                                        defense = -1;
-
-                                        // discard
-                                        for (let i = 0; i < hand.length; i++) {
-                                            if (hand[i].localeCompare(selectedCards[0].id) === 0) {
-                                                retreat.push(hand[i]);
-                                                hand.splice(i, 1);
-                                                break;
-                                            }
-                                        }
-                                        let prefix = 'players.' + thisComponent.thisPlayer.username + '.';
-                                        let updateData = {
-                                            'attackState.defense': defense,
-                                            'attackState.step': 6
-                                        };
-                                        updateData[prefix + 'hand'] = hand;
-                                        updateData[prefix + 'retreat'] = retreat;
-
-                                        fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                        thisComponent.communicating = false;
-                                    }
-                                };
-                                thisComponent.cardselect.active = true;
-                            };
-                            this.binaryoption.no = function () {
-                                let updateData = {
-                                    'attackState.step': 6
-                                };
-
-                                fb.roomsCollection.doc(thisComponent.hostplayer).update(updateData);
-                                thisComponent.communicating = false;
-                            };
-                            this.binaryoption.active = true;
-                        }
-                        break;
-                    case 6:
-                        // result
-                        if (this.turn) {
-                            if (this.communicating)
-                                return;
-                            this.communicating = true;
-                            let attack = data.attackState.attack;
-                            let defense = data.attackState.defense;
-                            let updateData = {
-                                attackState: {
-                                    active: false,
-                                    attack: 0,
-                                    defense: 0,
-                                    canAttackFrontLine: false,
-                                    canAttackBackLine: false,
-                                    selectedAttacker: null,
-                                    attackingFrom: null,
-                                    selectedDefender: null,
-                                    defendingFrom: null,
-                                    step: -1
-                                }
-                            };
-                            let thisPrefix = 'players.' + this.thisPlayer.username + '.';
-                            let oppPrefix = 'players.' + this.oppPlayer.username + '.';
-                            let thisRetreat = data.players[this.thisPlayer.username].retreat;
-                            let oppRetreat = data.players[this.oppPlayer.username].retreat;
-                            let thisSupport = data.players[this.thisPlayer.username].support;
-                            let oppSupport = data.players[this.oppPlayer.username].support;
-                            thisRetreat.push(thisSupport);
-                            oppRetreat.push(oppSupport);
-                            if (defense < 0 || defense > attack) {
-                                // defender wins
-                            } else {
-                                // attacker wins
-                                let defendingLine = data.attackState.defendingFrom;
-                                let index = data.attackState.selectedDefender;
-                                let wasFrontLine;
-                                if (defendingLine === "f") {
-                                    defendingLine = data.players[this.oppPlayer.username].frontLine;
-                                    wasFrontLine = true;
-                                } else {
-                                    defendingLine = data.players[this.oppPlayer.username].backLine;
-                                    wasFrontLine = false;
-                                }
-                                let destroyedUnit = defendingLine[index];
-
-                                if (destroyedUnit.MC) {
-                                    let orbs = data.players[this.oppPlayer.username].orbs;
-                                    if (orbs.length === 0) {
-                                        alert("You Win!");
-                                        let thisComponent = this;
-                                        fb.roomsCollection.doc(this.hostplayer).delete().then(function() {
-                                            thisComponent.$router.push("/matchmaking");
-                                        });
-                                    } else {
-                                        let hand = data.players[this.oppPlayer.username].hand;
-                                        hand.push(this._draw(orbs).cardID);
-
-                                        updateData[oppPrefix+'hand'] = hand;
-                                        updateData[oppPrefix+'orbs'] = orbs;
-                                    }
-                                } else {
-                                    for (let i = 0; i < destroyedUnit.cards.length; i++) {
-                                        oppRetreat.push(destroyedUnit.cards[i].id);
-                                    }
-                                    defendingLine.splice(index, 1);
-
-                                    if (wasFrontLine) {
-                                        updateData[oppPrefix+'frontLine'] = defendingLine;
-                                    } else {
-                                        updateData[oppPrefix+'backLine'] = defendingLine;
-                                    }
-                                }
-                            }
-
-                            updateData[oppPrefix+'retreat'] = oppRetreat;
-                            updateData[oppPrefix+'support'] = null;
-                            updateData[thisPrefix+'retreat'] = thisRetreat;
-                            updateData[thisPrefix+'support'] = null;
-
-                            fb.roomsCollection.doc(this.hostplayer).update(updateData);
-                            this.communicating = false;
-                        }
-                        break;
-                }
-
             },
             handClick(index) {
                 if (this.turn) {
@@ -1345,7 +1068,7 @@
             },
 
             unitClicked(line, index) {
-                if (this.turn) {
+                if (this.turn && !this.optionmenu.active) {
                     switch (this.phase) {
                         case 3:
                             if ((line === this.thisPlayer.frontLine || line === this.thisPlayer.backLine)

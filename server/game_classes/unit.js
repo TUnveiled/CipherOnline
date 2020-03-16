@@ -3,6 +3,14 @@ class Unit {
         this.cards = [card];
         this.mc = mc;
         this.tapped = false;
+        this.modifiers = {};
+        /*
+         * modifiers is a dictionary that describes how the unit currently differs from the text on the card
+         * For example, having a modifier "attack" of 30 would increase that unit's attack by 30
+         * Currently implemented modifiers:
+         * attack: as described in the example
+         */
+
     }
 
     getClientVersion() {
@@ -13,8 +21,20 @@ class Unit {
         return {
             cards: temp,
             MC: this.mc,
-            tapped: this.tapped
+            tapped: this.tapped,
+            modifiers: this.modifiers
         }
+    }
+
+    getAttack() {
+        if (this.modifiers['attack'])
+            return this.cards[0].get().attack + this.modifiers['attack'];
+        else
+            return this.cards[0].get().attack;
+    }
+
+    checkName(name) {
+        return this.cards[0].get().name === name;
     }
 
     levelup (newCard) {
@@ -39,6 +59,10 @@ class Unit {
 
     getName() {
         return this.cards[0].get().name;
+    }
+
+    addModifier(key, value) {
+        this.modifiers[key] = value;
     }
 }
 
