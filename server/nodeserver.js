@@ -37,7 +37,7 @@ app.get('/:no/:way', (req, res, next) => {
 
 app.listen(3000, () => {
     // eslint-disable-next-line no-console
-    console.log("Example app listening on port 3000")
+    console.log("App listening on port 3000")
 });
 
 // WebSocket Testing
@@ -414,12 +414,24 @@ wss.on('connection', ws => {
 
             case "getGameData":
                 // Room info
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
+                // eslint-disable-next-line no-inner-declarations
+                function sendGameData() {
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
+                    if (room) {
+                        room.changeSocket(user, ws);
 
-                room.sendGameState();
+                        room.sendGameState();
+                    } else {
+                        setTimeout(() => {
+                            sendGameData();
+                        }, 100);
+                    }
+                }
+                sendGameData();
+
                 break;
 
             case "rps":

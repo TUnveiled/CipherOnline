@@ -16,7 +16,6 @@
 </template>
 
 <script>
-    const fb = require('../firebaseConfig.js');
     const pf = require('../publicFunctions.js');
     import Userbar from '../components/userbar'
     export default {
@@ -27,49 +26,6 @@
             this.host = this.hostplayer.localeCompare(this.$store.state.userProfile.username) === 0;
 
             this.getDataFromServer();
-
-            // Get the information from the database about the room
-            // fb.roomsCollection.doc(this.hostplayer).get().then(function (doc) {
-            //     //if the room doesnt exist, kick the user
-            //     if (!doc.exists) {
-            //         alert("room has been closed");
-            //         router.push('/matchmaking');
-            //     } else {
-            //         // synchronize local data with server data
-            //         roomC.otherplayer = doc.data().other;
-            //         roomC.otherReady = doc.data().otherReady;
-            //         roomC.hostReady = doc.data().hostReady;
-            //         roomC.roomName=doc.data().name;
-            //
-            //         // If this user is unauthorized to be in this room, kick them
-            //         if (roomC.otherplayer !== roomC.$store.state.userProfile.username
-            //             && roomC.hostplayer !== roomC.$store.state.userProfile.username)
-            //             router.push('/matchmaking');
-            //
-            //         // Dynamically update page to match changes to the database
-            //         fb.roomsCollection.doc(roomC.hostplayer)
-            //             .onSnapshot(function(doc) {
-            //                 // if the room exists both locally and remotely, update the local version
-            //                 if (roomC && doc.exists) {
-            //                     roomC.otherplayer = doc.data().other;
-            //                     roomC.otherReady = doc.data().otherReady;
-            //                     roomC.hostReady = doc.data().hostReady;
-            //                     // kick unauthorized users
-            //                     if (roomC.otherplayer !== roomC.$store.state.userProfile.username
-            //                         && roomC.hostplayer !== roomC.$store.state.userProfile.username)
-            //                         router.push('/matchmaking');
-            //                     // TODO redirect players to game if inprogress
-            //                     if (doc.data().inprogress)
-            //                         router.push('/game/' + roomC.hostplayer)
-            //                 } else {
-            //                     // if the room doesn't exist locally and remotely, kick the user
-            //                     alert("This room doesn't exist");
-            //                     router.push('/matchmaking');
-            //                 }
-            //             });
-            //     }
-            //
-            // })
         },
 
         data() {
@@ -100,12 +56,6 @@
                 }
 
                 pf.checkConnection(foo, this);
-
-                // TODO remove
-                fb.roomsCollection.doc(this.hostplayer).update({
-                    other: '',
-                    otherReady: false
-                });
             },
             // TODO Socket
             deleteRoom() {
@@ -119,14 +69,6 @@
                     serverConnection.send(JSON.stringify(message));
                 }
                 pf.checkConnection(foo, this);
-
-                // TODO Remove
-                let router = this.$router;
-                // delete the room in the database then redirect the host player to matchmaking
-                // other player will be redirected by the dynamic system in mounted()
-                fb.roomsCollection.doc(this.hostplayer).delete().then(function() {
-                    router.push("/matchmaking");
-                });
             },
             leaveRoom() {
                 let serverConnection = this.$store.state.connection;
@@ -142,7 +84,6 @@
                 pf.checkConnection(foo, this);
 
             },
-            // TODO Socket
             startGame() {
 
                 let serverConnection = this.$store.state.connection;
@@ -155,23 +96,6 @@
                     serverConnection.send(JSON.stringify(message));
                 }
                 pf.checkConnection(foo, this);
-
-                //TODO remove
-                let players = {};
-                players[this.hostplayer] = {
-                    rps: null,
-                    MC: null
-                };
-                players[this.otherplayer] = {
-                    rps: null,
-                    MC: null
-                };
-                fb.roomsCollection.doc(this.hostplayer).update({
-                    inprogress: true,
-                    currentTurn: -1,
-                    players: players,
-                    currentPhase: -1
-                });
             },
             toggleReady() {
                 // toggle ready locally
@@ -188,14 +112,6 @@
                 }
 
                 pf.checkConnection(foo, this);
-
-                // // toggle ready remotely
-                // let temp;
-                // if (this.host) {
-                //     temp = {hostReady: this.ready};
-                // } else
-                //     temp = {otherReady: this.ready};
-                // fb.roomsCollection.doc(this.hostplayer).update(temp);
             },
             getDataFromServer() {
                 let serverConnection = this.$store.state.connection;

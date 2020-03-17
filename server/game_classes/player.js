@@ -5,74 +5,77 @@ const Deck = require('./deck').Deck;
 const Line = require('./line').Line;
 const Unit = require('./unit').Unit;
 const Hand = require('./hand').Hand;
-// eslint-disable-next-line no-unused-vars
+
 class Player {
-    // eslint-disable-next-line no-unused-vars
+
+    // constructor
     constructor(name, socket, isHost, room) {
-        this.name = name;
-        this.room = room;
-        this.socket = socket;
-        this.isHost = isHost;
-        this.isReady = false;
-        this.orbArea = new OrbArea();
-        this.retreat = new Discard();
-        this.boundless = new Discard();
-        this.deck = null;
-        this.mana = 0;
-        this.hand = new Hand();
-        this.frontline = new Line();
-        this.backline = new Line();
-        this.bondarea = new BondArea();
-        this.support = null;
-        this.rps = 'n';
-        this.MC = null;
-        this.optionResults = [];
-        this.options = {};
-        this.storedIndex = null;
-        this.noSelection = () => {};
+        this.name = name;               // Database username corresponding to this player
+        this.room = room;               // The room object this player is playing in
+        this.socket = socket;           // Socket being used to communicate with this player
+        this.isHost = isHost;           // Boolean value representing whether this player created the room
+        this.isReady = false;           // Boolean representing the ready status of the user
+        this.orbArea = new OrbArea();   // Object representing this player's "orb" cards
+        this.retreat = new Discard();   // Object representing this player's retreat pile
+        this.boundless = new Discard(); // Object representing this player's boundless pile
+        this.deck = null;               // Object representing this player's deck
+        this.mana = 0;                  // The number of bonds available for deployment this turn
+        this.hand = new Hand();         // Object representing the cards in the player's "hand"
+        this.frontline = new Line();    // Object representing the player's front line, holds unit objects
+        this.backline = new Line();     // Object representing the player's back line, holds unit objects
+        this.bondarea = new BondArea(); // Object representing the player's bond area, holds bond objects
+        this.support = null;            // Object representing the card (or lack thereof) in this player's support zone
+        this.rps = 'n';                 // This player's choice in janken 'r' 'p' 's' or 'n' (for unchosen)
+        this.MC = null;                 // Pointer to this player's MC unit
+        this.optionResults = [];        // Array of strings representing the function to call based on this player's response
+        this.options = {};              // Object representing the choice this user is being faced with
+        this.storedIndex = null;        // Temporary variable used to store information across player responses
+        this.noSelection = () => {};    // function that runs if the user responds with an empty array
     }
 
-    // eslint-disable-next-line no-unused-vars
-    selectMC(index, params) {
 
-        // add MC to front line
+    selectMC(index) {
+
+        // retrieve the card the user chose as MC
         let mc = this.deck.grab(index);
 
+        // add the MC to the front line
         this.frontline.deploy(this.MC = new Unit(mc, true));
 
-        this.options.cardselect.options = [];
-        this.optionResults = [];
-
+        // Give the player their starting hand
         this.deck.shuffle();
         this.draw(6);
 
-        // set up mulligan
+        // Give the player the option to trade their hand for a new one (once)
         this.options = {
             uiType: 'binaryoption',
             binaryoption: {
                 prompt: "Would you like to mulligan?"
             }
         };
-
         this.optionResults = [
             {func: "mulligan"},
             {func: "mulligan"}
         ];
 
+        // Send the state of the game to front end
+        // TODO change this to only update the user who selected their MC
         this.room.sendGameState();
     }
 
     draw(num) {
+        // add num cards from top of deck to hand
         for (let i = 0; i < num; i++) {
             this.hand.push(this.deck.draw());
             this.checkForEmptyDeck();
         }
     }
 
-    mulligan(num) {
-        let len = this.hand.length();
+    mulligan(skipMull) {
 
-        if (num === 0) {
+        // shuffle hand back into deck and draw that many cards back
+        let len = this.hand.length();
+        if (!skipMull) {
             for (let i = 0; i < len; i++) {
                 this.deck.push(this.hand.pop())
             }
@@ -80,29 +83,27 @@ class Player {
             this.draw(6);
         }
 
+        // reset the UI (avoid sending the same question again)
         this.options = {uiType: ""};
         this.optionResults = [];
 
-        // do the rest of the pre game setup
-
-        // add 5 orbs
+        // add 5 orbs (standard pre-game setup)
         for (let i = 0; i < 5; i++) {
             this.orbArea.push(this.deck.draw());
         }
 
+        // tell the room that this player is ready to start
         this.room.finishSetup();
 
         this.room.sendGameState();
     }
 
     selectResult(index) {
+        // String representing the player's selection
         let optionResult = this.optionResults[index];
 
-
-        console.log(JSON.stringify(optionResult.func));
-
+        // switch to determine next steps
         switch (optionResult.func) {
-
             case "selectMC":
                 this.selectMC(index, optionResult.params);
                 break;
@@ -183,19 +184,22 @@ class Player {
     }
 
     deploy(line) {
+        // create new unit object from card in hand
         let cardCopy = this.hand.grab(this.storedIndex);
-
         line.deploy(new Unit(cardCopy));
 
+        // update this player's mana
         this.mana -= cardCopy.get()['cost'];
 
+        // ask user for further deploys
         this.deployHandSelect();
-
     }
 
     promote() {
+        // remove the card from hand
         let cardCopy = this.hand.grab(this.storedIndex);
 
+        // update the unit being promoted
         if (this.frontline.contains(cardCopy.get().name)) {
             this.frontline.levelup(cardCopy);
         } else if (this.backline.contains(cardCopy.get().name)) {
@@ -204,16 +208,21 @@ class Player {
             return;
         }
 
+        // free draw as per promotion rules
         this.draw(1);
 
+        // update mana
         this.mana -= cardCopy.get()['promotion'];
 
+        // ask user about further deploys
         this.deployHandSelect();
     }
 
     levelup() {
+        // remove this card from hand
         let cardCopy = this.hand.grab(this.storedIndex);
 
+        // update the unit being levelled up
         if (this.frontline.contains(cardCopy.get().name)) {
             this.frontline.levelup(cardCopy);
         } else if (this.backline.contains(cardCopy.get().name)) {
@@ -222,33 +231,39 @@ class Player {
             return;
         }
 
+        // update mana
         this.mana -= cardCopy.get()['cost'];
 
+        // ask user about further deploys
         this.deployHandSelect();
     }
 
     deployHandSelect() {
-        console.log("running");
+
+        // Prompt the player to take their next option
         this.options = {
             uiType: 'handselect',
             handselect: {
-                message: 'click a card in your hand to deploy/promote/level up'
+                message: 'click a card in your hand to deploy or class change'
             },
         };
 
+        // Create an array mapping possible responses from client to the action the server shhould take in response
         this.optionResults = [];
-
         for (let i = 0; i <= this.hand.length(); i++) {
             this.optionResults.push({
                 func: "deployoptions"
             })
         }
 
+        // update the players on front end
         this.room.sendGameState();
     }
 
     actionUnitSelect() {
-        let options = {
+
+        // Prompt the player to take an action
+        this.options = {
             uiType: 'unitselect',
             unitselect: {
                 message: 'click an allied unit in the play area to see the actions that unit can take',
@@ -257,35 +272,34 @@ class Player {
             },
         };
 
+        // options to select each unit in their lines plus one to end the phase
         let lineLengths = this.frontline.length() + this.backline.length();
-
         this.optionResults = [];
-
-        // options to select each unit in their lines plus one to end
         for (let j = 0; j <= lineLengths; j++) {
             this.optionResults.push({
                 func: "getactions"
             });
         }
 
-        this.options = options;
-
+        // update the client side
         this.room.sendGameState();
     }
 
     sendDeployOptions(index) {
 
+        // if they chose to end the phase (always the last option)
         if (index === this.hand.model.length) {
             this.room.actionPhase();
             return;
         }
 
+        // store their choice for later
         this.storedIndex = index;
 
+        // get the card data for this player
         let cardData = this.hand.model[index].get();
 
-        console.log(JSON.stringify(cardData));
-
+        // prompt the user for what they want to do with the card they selected
         this.options = {
             uiType: "optionmenu",
             optionmenu: {
@@ -294,13 +308,12 @@ class Player {
             }
         };
 
+        // determine what the player can do with the card they've selected
         this.optionResults = [];
 
         let meetsDeployCost = cardData['cost'] <= this.mana;
         let meetsPromoCost = cardData['promotion'] && cardData.promotion <= this.mana;
         let isDeployed = this.backline.contains(cardData.name) || this.frontline.contains(cardData.name);
-
-        console.log(cardData['cost'], this.mana);
 
         if (meetsDeployCost && !isDeployed) {
             this.options.optionmenu.options.push("Deploy To Front Line");
@@ -332,28 +345,28 @@ class Player {
             func: "canceldeploy"
         });
 
+        // update the front end
         this.room.sendGameState();
     }
 
     sendActions(index) {
 
-        if (index === this.frontline.length() + this.backline.length()) {
+        // received message to go to next phase
+        if (index >= this.frontline.length() + this.backline.length()) {
             this.room.endPhase();
             return;
         }
 
+        // store the unit they selected for later use
         this.storedIndex = index;
 
+        // determine what unit corresponds to the response
         let inFrontLine = (index < this.frontline.length());
-        // let backLine = !frontLine;
-
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
-
-
         let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
                                              this.backline.getUnit(lineIndex);
 
-
+        // prompt the user, asking what they wish to do with the unit they selected
         this.options = {
             uiType: "optionmenu",
             optionmenu: {
@@ -362,6 +375,7 @@ class Player {
             }
         };
 
+        // determine what this player can do with the unit they selected
         this.optionResults = [];
 
         let attackOptions = this.getAttackOptions(selectedUnit.cards[0].get(), inFrontLine);
@@ -388,19 +402,17 @@ class Player {
             func: "cancelact"
         });
 
+        // update the front end
         this.room.sendGameState();
     }
 
     getSelectedUnit() {
+        // get the unit object corresponding to the stored index
         let index = this.storedIndex;
-
         let inFrontLine = (index < this.frontline.length());
-        // let backLine = !frontLine;
-
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
 
-        return (inFrontLine) ? this.frontline.getUnit(lineIndex) :
-            this.backline.getUnit(lineIndex);
+        return (inFrontLine) ? this.frontline.getUnit(lineIndex) : this.backline.getUnit(lineIndex);
     }
 
     getAttackOptions(selectedUnitInfo, inFrontLine) {
@@ -443,6 +455,7 @@ class Player {
     }
 
     initializeDeck(fb, activeCards) {
+        // create deck object using database
         this.deck = new Deck(fb, activeCards);
     }
 
@@ -481,6 +494,7 @@ class Player {
 
         let enemyPlayer = this.room.getOtherPlayer(this.name);
 
+        // prompt the user to determine what unit they'd like to target with their attack
         this.options = {
             uiType: 'unitselect',
             unitselect: {
@@ -491,9 +505,9 @@ class Player {
             },
         };
 
+
         this.optionResults = [];
 
-        // options to bond each card in their hand
         for (let j = 0; j <= enemyPlayer.frontline.length(); j++) {
             this.options.unitselect.validTargets.push(canAttackFrontLine);
             this.optionResults.push({
@@ -508,19 +522,17 @@ class Player {
             });
         }
 
+        // update the front end
         this.room.sendGameState();
     }
 
     move() {
+        // find the unit to move
         let index = this.storedIndex;
-
         let inFrontLine = (index < this.frontline.length());
-        // let backLine = !frontLine;
-
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
 
-
-
+        // tap and move the unit
         if (inFrontLine) {
             this.frontline.tap(lineIndex);
             this.backline.add(this.frontline.remove(lineIndex));
@@ -529,29 +541,30 @@ class Player {
             this.frontline.add(this.backline.remove(lineIndex));
         }
 
+        // prompt the user to continue their action phase
         this.actionUnitSelect();
-
     }
 
     attackTarget(defenderIndex) {
+        // tap the unit that's attacking
         this.getSelectedUnit().tap();
+
+        // allow the room to continue with the attack sequence
         this.room.resolveAttack(this.storedIndex, defenderIndex);
     }
 
     flipForSupport() {
+        // move top card to support zone
         this.support = this.deck.draw();
+
+        // check for empty deck
         this.checkForEmptyDeck();
 
-        let index = this.storedIndex;
-        let inFrontLine = (index < this.frontline.length());
-        // let backLine = !frontLine;
+        let selectedUnit = this.getSelectedUnit();
 
-        let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
-
-        let selectedUnit = (inFrontLine) ? this.frontline.getUnit(lineIndex) :
-            this.backline.getUnit(lineIndex);
-
-        selectedUnit.addModifier('attack', this.support.get().support);
+        // check for successful support
+        if (selectedUnit.getName() !== this.support.get().name)
+            selectedUnit.addModifier('attack', this.support.get().support);
     }
 
     sendCritOptions(skipCrit) {
@@ -560,6 +573,7 @@ class Player {
 
             let selectedUnit = this.getSelectedUnit();
 
+            // ask the player what they'd like to discard to crit
             let options = {
                 uiType: 'cardSelect',
                 cardselect: {
@@ -574,9 +588,7 @@ class Player {
 
             this.optionResults = [];
 
-
             for (let j = 0; j < this.hand.length(); j++) {
-
                 let card = this.hand.model[j].get();
                 let option = {
                     id: card['id'],
@@ -591,18 +603,24 @@ class Player {
                 });
             }
             this.options = options;
+
+            // if they dont make a selection, assume they did not want to crit
             this.noSelection = () => {
                 this.options = {};
                 this.optionResults = [];
 
+                // move on to evade step
                 this.room.askEvade();
             };
+
+            // update front end
             this.room.sendGameState();
 
         } else {
             this.options = {};
             this.optionResults = [];
 
+            // move on to evade step
             this.room.askEvade();
         }
 
@@ -614,6 +632,7 @@ class Player {
 
         let selectedDiscard = this.hand.model[handIndex].get();
 
+        // discard the selected card from hand, increase attack as per crit rules
         if (selectedUnit.checkName(selectedDiscard.name)) {
             this.retreat.push(this.hand.grab(handIndex));
 
@@ -623,6 +642,7 @@ class Player {
         this.options = {};
         this.optionResults = [];
 
+        // move on to evade step
         this.room.askEvade();
     }
 
@@ -632,14 +652,17 @@ class Player {
 
         let selectedDiscard = this.hand.model[handIndex].get();
 
+        // discard the selected card and continue damage calculation with evade modifier
         if (selectedUnit.checkName(selectedDiscard.name)) {
             this.retreat.push(this.hand.grab(handIndex));
             evade = true;
         }
 
+        // reset prompts
         this.options = {};
         this.optionResults = [];
 
+        // calculate final attack result
         this.room.mathAttackResult(evade);
     }
 
@@ -648,6 +671,7 @@ class Player {
 
             let selectedUnit = this.getSelectedUnit();
 
+            // prompt user to select a card to discard to evade
             let options = {
                 uiType: 'cardSelect',
                 cardselect: {
@@ -677,12 +701,17 @@ class Player {
                 });
             }
             this.options = options;
+
+            // if they didnt make a selection, assume they did not wish to evade
             this.noSelection = () => {
                 this.options = {};
                 this.optionResults = [];
 
+                // calculate final attack result
                 this.room.mathAttackResult();
             };
+
+            // update the front end
             this.room.sendGameState();
 
         } else {
@@ -697,15 +726,13 @@ class Player {
     destroySelectedUnit() {
 
         let index = this.storedIndex;
-
         let inFrontLine = (index < this.frontline.length());
-        // let backLine = !frontLine;
-
         let lineIndex = (inFrontLine) ? index : index - this.frontline.length();
 
         let selectedUnit =  (inFrontLine) ? this.frontline.getUnit(lineIndex) :
             this.backline.getUnit(lineIndex);
 
+        // take an orb if you can
         if (selectedUnit.mc) {
             this.takeOrb();
         } else {
@@ -727,19 +754,23 @@ class Player {
     }
 
     discardSupport() {
+        // clear the card in the support zone
         this.retreat.push(this.support);
         this.support = null;
     }
 
     takeOrb() {
         if (this.orbArea.length()) {
+            // move the orb from the orb area to hand
             this.hand.push(this.orbArea.pop());
         } else {
+            // lose the game if you cant take an orb you need to take
             this.room.lose(this);
         }
     }
 
     checkForEmptyDeck() {
+        // if the deck is empty, replace the deck with the discard pile
         if (this.deck.length() === 0) {
             while (this.retreat.length())  {
                 this.deck.push(this.retreat.pop());
@@ -747,6 +778,7 @@ class Player {
 
             this.deck.shuffle();
 
+            // if both deck and discard pile are empty, the game ends
             if (this.deck.length() === 0) {
                 this.room.lose(this);
             }
@@ -754,6 +786,8 @@ class Player {
     }
 
     checkForForcedMarch() {
+        // front line can't be empty during opponent's turn
+        // move back line to front
         if (this.frontline.length() === 0) {
             this.frontline = this.backline;
             this.backline = new Line();

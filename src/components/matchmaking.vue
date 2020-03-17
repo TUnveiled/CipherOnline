@@ -51,7 +51,6 @@
     import Userbar from "@/components/userbar";
     const pf = require("../publicFunctions.js");
     // eslint-disable-next-line no-unused-vars
-    const fb = require('../firebaseConfig.js');
 
     export default {
         name: "matchmaking",
@@ -65,29 +64,10 @@
             // check to see if this user already has a room and redirect accordingly
             this.alreadyHosting();
 
-            //let query = fb.roomsCollection;
-            // let thisComponent = this;
 
             // dynamically update page to reflect changes in database -- Keep Client side
             this.getRoomsFromServer();
 
-            // TODO : remove
-            // fb.roomsCollection
-            //     .onSnapshot(function(result) {
-            //         // empty the table
-            //         thisComponent.jointabledata = [];
-            //         // refill the table with new data
-            //         result.forEach(function(doc) {
-            //             let data = doc.data();
-            //             let nextElement = {
-            //                 "name": data.name,
-            //                 "host": data.host,
-            //                 "Full?": ((data.other.localeCompare('') === 0) ? 'No' : 'Yes'),
-            //                 "Join": data.host
-            //             };
-            //             thisComponent.jointabledata.push(nextElement);
-            //         });
-            //     });
         },
         methods: {
             startHosting() {
@@ -117,30 +97,7 @@
                 pf.checkConnection(foo, this);
             },
             alreadyHosting() {
-                // check if already hosting
-                // store temporarily since "this" keyword won't work in the timeout function
-                let username = this.$store.state.userProfile.username;
-                let store = this.$store;
-                let router = this.$router;
-                let temp = this.alreadyHosting;
-
-                // Redirect the user if they have a room already
-                // Use recursion and timeouts to account for delays in fetching the user profile after a refresh
-                // TODO : update to new server architecture
-                setTimeout(function() {
-                    if (store) {
-                        if (username) {
-                            fb.roomsCollection.doc(username).get().then(function (doc) {
-                                if (doc.exists)
-                                    router.push('/room/'+username);
-                            })
-                        } else
-                            temp();
-                    } else
-                        temp();
-
-                }, 100);
-
+                // TODO : Redirect the user if they have a room already
             },
             join(host) {
                 if (!this.$store.state.token || !this.$store.state.userProfile.username) {
