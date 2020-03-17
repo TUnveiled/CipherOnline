@@ -100,6 +100,7 @@ class Player {
 
     selectResult(index) {
         // String representing the player's selection
+
         let optionResult = this.optionResults[index];
 
         // switch to determine next steps
@@ -174,6 +175,10 @@ class Player {
 
             case "cancelact":
                 this.actionUnitSelect();
+                break;
+
+            case "redirect":
+                this.redirect();
                 break;
 
             case "null":
@@ -508,14 +513,14 @@ class Player {
 
         this.optionResults = [];
 
-        for (let j = 0; j <= enemyPlayer.frontline.length(); j++) {
+        for (let j = 0; j < enemyPlayer.frontline.length(); j++) {
             this.options.unitselect.validTargets.push(canAttackFrontLine);
             this.optionResults.push({
                 func: (canAttackFrontLine) ? "attacktarget" : "invalidtarget"
             });
         }
 
-        for (let j = 0; j <= enemyPlayer.backline.length(); j++) {
+        for (let j = 0; j < enemyPlayer.backline.length(); j++) {
             this.options.unitselect.validTargets.push(canAttackBackLine);
             this.optionResults.push({
                 func: (canAttackBackLine) ? "attacktarget" : "invalidtarget"
@@ -546,6 +551,9 @@ class Player {
     }
 
     attackTarget(defenderIndex) {
+        //let enemyPlayer = this.room.getOtherPlayer(this.name);
+
+
         // tap the unit that's attacking
         this.getSelectedUnit().tap();
 
@@ -792,6 +800,18 @@ class Player {
             this.frontline = this.backline;
             this.backline = new Line();
         }
+    }
+
+    redirect() {
+        console.log("redirect running");
+        this.room.removePlayer(this);
+
+        this.socket.send(JSON.stringify({
+            type: "route",
+            contents: {
+                destination: '/matchmaking'
+            }
+        }));
     }
 }
 

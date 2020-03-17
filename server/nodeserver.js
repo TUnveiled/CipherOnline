@@ -82,339 +82,343 @@ wss.on('connection', ws => {
         message = JSON.parse(message);
         console.log(message);
         let response, user, room, host, player;
+        try {
+            switch (message.type) {
 
-        switch (message.type) {
+                case "FB Tok":
+                    fb.auth.verifyIdToken(message.contents.token).then(decodedToken => {
+                        fb.usersCollection.doc(decodedToken.uid).get().then(document => {
 
-            case "FB Tok":
-                fb.auth.verifyIdToken(message.contents.token).then(decodedToken => {
-                    fb.usersCollection.doc(decodedToken.uid).get().then(document => {
+                            let username = document.data().username;
 
-                        let username = document.data().username;
+                            // Remove old token
+                            if (usersToTokens[username])
+                                delete tokensToUsers[usersToTokens[username]];
 
-                        // Remove old token
-                        if (usersToTokens[username])
-                            delete tokensToUsers[usersToTokens[username]];
+                            // add new token
+                            tokensToUsers[message.contents.token] = username;
+                            usersToTokens[username] = message.contents.token;
+                            usersToSockets[username] = ws;
 
-                        // add new token
-                        tokensToUsers[message.contents.token] = username;
-                        usersToTokens[username] = message.contents.token;
-                        usersToSockets[username] = ws;
-
+                        });
+                        // TODO : maybe send back ack idk
+                    }).catch(error => {
+                        error; // TODO : handle error
                     });
-                    // TODO : maybe send back ack idk
-                }).catch(error => {
-                    error; // TODO : handle error
-                });
 
-                break;
+                    break;
 
-            case "NewCon":
-                user = tokensToUsers[message.contents.token];
-                usersToSockets[user] = ws;
+                case "NewCon":
+                    user = tokensToUsers[message.contents.token];
+                    usersToSockets[user] = ws;
 
-                for (let i = 0; i < rooms.length; i++) {
-                    if (rooms[i].containsUser(user)) {
-                        if (rooms[i].hostedBy(user)) {
-                            rooms[i].players[0].socket = ws;
-                        } else {
-                            rooms[i].players[1].socket = ws;
+                    for (let i = 0; i < rooms.length; i++) {
+                        if (rooms[i].containsUser(user)) {
+                            if (rooms[i].hostedBy(user)) {
+                                rooms[i].players[0].socket = ws;
+                            } else {
+                                rooms[i].players[1].socket = ws;
+                            }
                         }
                     }
-                }
-                break;
+                    break;
 
-            case "New Room": // add the new room to the database
-                host = tokensToUsers[message.contents.token];
-                if (!host) break;
-                rooms.push(new Room(host, message.contents.name, ws, activeCards));
-                // TODO : remove
-                fb.roomsCollection.doc(host).set({
-                    host: host,
-                    other: "",
-                    name: message.contents.name,
-                    inprogress: false,
-                    hostReady: false,
-                    otherReady: false
-                });
+                case "New Room": // add the new room to the database
+                    host = tokensToUsers[message.contents.token];
+                    if (!host) break;
+                    rooms.push(new Room(host, message.contents.name, ws, activeCards));
+                    // TODO : remove
+                    fb.roomsCollection.doc(host).set({
+                        host: host,
+                        other: "",
+                        name: message.contents.name,
+                        inprogress: false,
+                        hostReady: false,
+                        otherReady: false
+                    });
 
-                let routeResponse = {
-                    type: "route",
-                    contents: {
-                        destination: '/room/' + host
-                    }
-                };
-                // route to the new room
-                ws.send(JSON.stringify(routeResponse));
-                break;
-
-            case "Join Room":
-                // find the room they want to join
-                let roomToJoin = rooms.filter(room => {
-                    return room.hostedBy(message.contents.host);
-                })[0];
-
-                // add them to the room on this end
-                let uname = tokensToUsers[message.contents.token];
-
-                // Room was deleted before joining
-                if(!roomToJoin){
-                    let errorResponse = {
-                        type: "error",
-                        contents:{
-                            errorMessage: "Room no Longer Exists! :("
-                        }
-                    };
-                    ws.send(JSON.stringify(errorResponse));
-                    return;
-                }
-
-                let success = roomToJoin.addPlayer(uname, ws);
-                // route them
-                if (success) {
                     let routeResponse = {
                         type: "route",
-                        contents:{
-                            destination: '/room/' + message.contents.host
+                        contents: {
+                            destination: '/room/' + host
                         }
                     };
+                    // route to the new room
                     ws.send(JSON.stringify(routeResponse));
+                    break;
 
-                    // tell the host
-                    let hostResponse = {
+                case "Join Room":
+                    // find the room they want to join
+                    let roomToJoin = rooms.filter(room => {
+                        return room.hostedBy(message.contents.host);
+                    })[0];
+
+                    // add them to the room on this end
+                    let uname = tokensToUsers[message.contents.token];
+
+                    // Room was deleted before joining
+                    if (!roomToJoin) {
+                        let errorResponse = {
+                            type: "error",
+                            contents: {
+                                errorMessage: "Room no Longer Exists! :("
+                            }
+                        };
+                        ws.send(JSON.stringify(errorResponse));
+                        return;
+                    }
+
+                    let success = roomToJoin.addPlayer(uname, ws);
+                    // route them
+                    if (success) {
+                        let routeResponse = {
+                            type: "route",
+                            contents: {
+                                destination: '/room/' + message.contents.host
+                            }
+                        };
+                        ws.send(JSON.stringify(routeResponse));
+
+                        // tell the host
+                        let hostResponse = {
+                            type: "RoomData",
+                            contents: {
+                                otherplayer: uname
+                            }
+                        };
+
+                        console.log(uname);
+                        console.log(message.contents.host);
+                        roomToJoin.players[0].socket.send(JSON.stringify(hostResponse));
+                    }
+
+
+                    // // TODO : remove
+                    // // check to see if the room is available
+                    // fb.roomsCollection.doc(message.contents.host).get().then(function(doc) {
+                    //     // if the room doesn't have a 2 users
+                    //     if (doc.data().other.localeCompare("") === 0) {
+                    //         // add this user to the room in the database
+                    //         fb.roomsCollection.doc(message.contents.host).update({
+                    //             other: uname
+                    //         }).then(function() {
+                    //             // redirect this user to the room page
+                    //             let routeResponse = {
+                    //                 type: "route",
+                    //                 contents:{
+                    //                     destination: '/room/' + message.contents.host
+                    //                 }
+                    //             };
+                    //             // route to the new room
+                    //             ws.send(JSON.stringify(routeResponse));
+                    //         }).catch(err => {
+                    //
+                    //             let errorResponse = {
+                    //                 type: "error",
+                    //                 contents:{
+                    //                     errorMessage: err
+                    //                 }
+                    //             };
+                    //             //error message
+                    //             ws.send(JSON.stringify(errorResponse));
+                    //         })
+                    //     } else {
+                    //
+                    //         let fullResponse = {
+                    //             type: "full",
+                    //             contents:{
+                    //                 errorMessage: "The Room is Full."
+                    //             }
+                    //         };
+                    //         //error message
+                    //         ws.send(JSON.stringify(fullResponse));
+                    //     }
+                    // });
+
+                    break;
+
+                case "Get Rooms":
+
+                    response = {
+                        type: "rooms",
+                        contents: []
+                    };
+
+                    for (let i = 0; i < rooms.length; i++) {
+                        let room = rooms[i]
+                        if (!room.players[0] && !room.players[1]) {
+                            rooms.splice(i--, 1);
+                        } else {
+                            response.contents.push({
+                                host: room.getHostName(),
+                                rname: room.name,
+                                full: room.isFull()
+                            })
+                        }
+                    }
+
+                    ws.send(JSON.stringify(response));
+
+                    break;
+
+                case "Kick":
+                    let kickedPlayer = rooms.filter(room => {
+                        return room.hostedBy(tokensToUsers[message.contents.token]);
+                    })[0].kick();
+
+                    response = {
                         type: "RoomData",
                         contents: {
-                            otherplayer: uname
+                            otherplayer: "",  // name of non-host
+                            otherReady: false
+                        }
+                    };
+                    ws.send(JSON.stringify(response));
+
+                    response = {
+                        type: "route",
+                        contents: {
+                            destination: '/matchmaking'
                         }
                     };
 
-                    console.log(uname);
-                    console.log(message.contents.host);
-                    roomToJoin.players[0].socket.send(JSON.stringify(hostResponse));
-                }
+                    kickedPlayer.socket.send(JSON.stringify(response));
 
+                    break;
 
+                case "GetRoomData":
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                // // TODO : remove
-                // // check to see if the room is available
-                // fb.roomsCollection.doc(message.contents.host).get().then(function(doc) {
-                //     // if the room doesn't have a 2 users
-                //     if (doc.data().other.localeCompare("") === 0) {
-                //         // add this user to the room in the database
-                //         fb.roomsCollection.doc(message.contents.host).update({
-                //             other: uname
-                //         }).then(function() {
-                //             // redirect this user to the room page
-                //             let routeResponse = {
-                //                 type: "route",
-                //                 contents:{
-                //                     destination: '/room/' + message.contents.host
-                //                 }
-                //             };
-                //             // route to the new room
-                //             ws.send(JSON.stringify(routeResponse));
-                //         }).catch(err => {
-                //
-                //             let errorResponse = {
-                //                 type: "error",
-                //                 contents:{
-                //                     errorMessage: err
-                //                 }
-                //             };
-                //             //error message
-                //             ws.send(JSON.stringify(errorResponse));
-                //         })
-                //     } else {
-                //
-                //         let fullResponse = {
-                //             type: "full",
-                //             contents:{
-                //                 errorMessage: "The Room is Full."
-                //             }
-                //         };
-                //         //error message
-                //         ws.send(JSON.stringify(fullResponse));
-                //     }
-                // });
+                    response = {
+                        type: "RoomData",
+                        contents: {
+                            otherplayer: room.getOtherName(),  // name of non-host
+                            roomName: room.name,     // name of room
+                            hostReady: room.isReady(0), // is the host ready?
+                            otherReady: room.isReady(1)// is the non-host ready?
+                        }
+                    };
 
-                break;
+                    ws.send(JSON.stringify(response));
 
-            case "Get Rooms":
+                    break;
 
-                response = {
-                    type: "rooms",
-                    contents: []
-                };
+                case "ToggleReady":
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                rooms.forEach(room => {
-                    response.contents.push({
-                        host: room.getHostName(),
-                        rname: room.name,
-                        full: room.isFull()
-                    })
-                });
+                    host = room.hostedBy(user);
 
-                ws.send(JSON.stringify(response));
+                    if (host)
+                        room.readyPlayer(0);
+                    else
+                        room.readyPlayer(1);
 
-                break;
+                    response = {
+                        type: "RoomData",
+                        contents: {
+                            hostReady: room.isReady(0),
+                            otherReady: room.isReady(1)
+                        }
+                    };
 
-            case "Kick":
-                let kickedPlayer = rooms.filter(room => {
-                    return room.hostedBy(tokensToUsers[message.contents.token]);
-                })[0].kick();
+                    room.players[0].socket.send(JSON.stringify(response));
+                    if (room.players[1])
+                        room.players[1].socket.send(JSON.stringify(response));
 
-                response = {
-                    type: "RoomData",
-                    contents: {
-                        otherplayer: "",  // name of non-host
-                        otherReady: false
-                    }
-                };
-                ws.send(JSON.stringify(response));
+                    break;
 
-                response = {
-                    type: "route",
-                    contents: {
-                        destination: '/matchmaking'
-                    }
-                };
+                case "LeaveRoom":
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                kickedPlayer.socket.send(JSON.stringify(response));
+                    host = room.hostedBy(user);
 
-                break;
+                    if (host)
+                        return;
 
-            case "GetRoomData":
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
+                    response = {
+                        type: "route",
+                        contents: {
+                            destination: '/matchmaking'
+                        }
+                    };
+                    ws.send(JSON.stringify(response));
+                    room.kick();
 
-                response = {
-                    type: "RoomData",
-                    contents: {
-                        otherplayer: room.getOtherName(),  // name of non-host
-                        roomName: room.name,     // name of room
-                        hostReady: room.isReady(0), // is the host ready?
-                        otherReady: room.isReady(1)// is the non-host ready?
-                    }
-                };
+                    // Update Host data
+                    response = {
+                        type: "RoomData",
+                        contents: {
+                            otherplayer: "",  // name of non-host
+                            otherReady: false
+                        }
+                    };
+                    room.players[0].socket.send(JSON.stringify(response));
+                    break;
 
-                ws.send(JSON.stringify(response));
+                case "deleteRoom":
+                    // Room info
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                break;
+                    // Ensure request was sent only by host
+                    host = room.hostedBy(user);
+                    if (!host)
+                        return;
+                    //Route player(s)
+                    response = {
+                        type: "route",
+                        contents: {
+                            destination: '/matchmaking'
+                        }
+                    };
+                    // Second Player?
+                    if (room.players[1])
+                        room.players[1].socket.send(JSON.stringify(response));
+                    ws.send(JSON.stringify(response));
 
-            case "ToggleReady":
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
+                    // Delete Element
+                    let roomIndex = rooms.findIndex(room => {
+                        return room.hostedBy(user);
+                    });
+                    rooms.splice(roomIndex, 1);     // delete just 1 element
+                    break;
 
-                host = room.hostedBy(user);
+                case "startGame":
+                    // Room info
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                if (host)
-                    room.readyPlayer(0);
-                else
-                    room.readyPlayer(1);
+                    if (!room.bothReady())
+                        return;
+                    room.startGame(fb);
 
-                response = {
-                    type: "RoomData",
-                    contents: {
-                        hostReady: room.isReady(0),
-                        otherReady: room.isReady(1)
-                    }
-                };
+                    response = {
+                        type: "route",
+                        contents: {
+                            destination: '/game/' + room.getHostName()
+                        }
+                    };
 
-                room.players[0].socket.send(JSON.stringify(response));
-                if (room.players[1])
+                    ws.send(JSON.stringify(response));
                     room.players[1].socket.send(JSON.stringify(response));
+                    break;
 
-                break;
-
-            case "LeaveRoom":
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
-
-                host = room.hostedBy(user);
-
-                if (host)
-                    return;
-
-                response = {
-                    type: "route",
-                    contents: {
-                        destination: '/matchmaking'
-                    }
-                };
-                ws.send(JSON.stringify(response));
-                room.kick();
-
-                // Update Host data
-                response = {
-                    type: "RoomData",
-                    contents: {
-                        otherplayer: "",  // name of non-host
-                        otherReady: false
-                    }
-                };
-                room.players[0].socket.send(JSON.stringify(response));
-                break;
-
-            case "deleteRoom":
-                // Room info
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
-
-                // Ensure request was sent only by host
-                host = room.hostedBy(user);
-                if (!host)
-                    return;
-                //Route player(s)
-                response = {
-                    type: "route",
-                    contents: {
-                        destination: '/matchmaking'
-                    }
-                };
-                // Second Player?
-                if (room.players[1])
-                    room.players[1].socket.send(JSON.stringify(response));
-                ws.send(JSON.stringify(response));
-
-                // Delete Element
-                let roomIndex = rooms.findIndex(room =>{
-                    return room.hostedBy(user);
-                });
-                rooms.splice(roomIndex, 1);     // delete just 1 element
-                break;
-
-            case "startGame":
-                // Room info
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
-
-                if (!room.bothReady())
-                    return;
-                room.startGame(fb);
-
-                response = {
-                    type: "route",
-                    contents: {
-                        destination: '/game/' + room.getHostName()
-                    }
-                };
-
-                ws.send(JSON.stringify(response));
-                room.players[1].socket.send(JSON.stringify(response));
-                break;
-
-            case "getGameData":
-                // Room info
-                // eslint-disable-next-line no-inner-declarations
+                case "getGameData":
+                    // Room info
+                    // eslint-disable-next-line no-inner-declarations
                 function sendGameData() {
                     user = tokensToUsers[message.contents.token];
                     room = rooms.filter(room => {
@@ -430,132 +434,138 @@ wss.on('connection', ws => {
                         }, 100);
                     }
                 }
-                sendGameData();
 
-                break;
+                    sendGameData();
 
-            case "rps":
-                // Room info
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
+                    break;
 
-                room.getPlayer(user).rps = message.contents.choice;
-                console.log(room.getPlayer(user).rps);
+                case "rps":
+                    // Room info
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-                if (room.checkRPS()) {
+                    room.getPlayer(user).rps = message.contents.choice;
+                    console.log(room.getPlayer(user).rps);
 
-                    if (room.firstPlayer) {
-                        console.log("here");
-                        for (let i = 0; i < 2; i++) {
-                            let options = {
-                                uiType: 'cardSelect',
-                                cardselect: {
-                                    active: true, // whether the window is visible
-                                    options: [], // the cards that can be selected
-                                    min: 1, // the minimum number of cards that need to be selected
-                                    max: 1, // the max number of cards that can be selected
-                                    message: 'Select Your MC', // prompt for selection
-                                    // numSelected: 0 // the number of options currently selected
-                                    // confirm: null
-                                },
-                            };
-                            let player = room.players[i];
-                            let deck = player.deck.get();
+                    if (room.checkRPS()) {
+
+                        if (room.firstPlayer) {
+                            console.log("here");
+                            for (let i = 0; i < 2; i++) {
+                                let options = {
+                                    uiType: 'cardSelect',
+                                    cardselect: {
+                                        active: true, // whether the window is visible
+                                        options: [], // the cards that can be selected
+                                        min: 1, // the minimum number of cards that need to be selected
+                                        max: 1, // the max number of cards that can be selected
+                                        message: 'Select Your MC', // prompt for selection
+                                        // numSelected: 0 // the number of options currently selected
+                                        // confirm: null
+                                    },
+                                };
+                                let player = room.players[i];
+                                let deck = player.deck.get();
 
 
-                            player.optionResults = [];
-                            for (let j = 0; j < deck.length; j++) {
-                                let card = deck[j].get();
-                                let option = {
-                                    id: card['id'],
-                                    valid: card['cost'] === 1,
-                                    selected: false
+                                player.optionResults = [];
+                                for (let j = 0; j < deck.length; j++) {
+                                    let card = deck[j].get();
+                                    let option = {
+                                        id: card['id'],
+                                        valid: card['cost'] === 1,
+                                        selected: false
+                                    };
+
+                                    options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
+
+                                    player.optionResults.push({
+                                        func: (option.valid) ? "selectMC" : null
+                                    });
+                                }
+                                player.options = options;
+
+                                response = {
+                                    type: 'gameData',
+                                    contents: {
+                                        firstPlayer: room.firstPlayer.name,
+                                        options: options
+                                    }
                                 };
 
-                                options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
+                                player.socket.send(JSON.stringify(response));
 
-                                player.optionResults.push({
-                                    func: (option.valid) ? "selectMC" : null
-                                });
                             }
-                            player.options = options;
 
+                        } else {
                             response = {
                                 type: 'gameData',
                                 contents: {
-                                    firstPlayer: room.firstPlayer.name,
-                                    options: options
+                                    rps: 'n'
                                 }
                             };
 
-                            player.socket.send(JSON.stringify(response));
-
+                            room.players[0].socket.send(JSON.stringify(response));
+                            room.players[1].socket.send(JSON.stringify(response));
                         }
 
-                    } else {
-                        response = {
-                            type: 'gameData',
-                            contents: {
-                                rps: 'n'
-                            }
-                        };
 
-                        room.players[0].socket.send(JSON.stringify(response));
-                        room.players[1].socket.send(JSON.stringify(response));
                     }
 
+                    break;
 
-                }
+                case "getCardData":
+                    response = {
+                        type: 'newCard',
+                        contents: activeCards.cardObj[message.contents.id]
+                    };
+                    ws.send(JSON.stringify(response));
+                    break;
 
-                break;
+                case "selection":
+                    // Room info
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
 
-            case "getCardData":
-                response = {
-                    type: 'newCard',
-                    contents: activeCards.cardObj[message.contents.id]
-                };
-                ws.send(JSON.stringify(response));
-                break;
+                    player = room.getPlayer(user);
 
-            case "selection":
-                // Room info
-                user = tokensToUsers[message.contents.token];
-                room = rooms.filter(room => {
-                    return room.containsUser(user);
-                })[0];
+                    console.log(JSON.stringify(player.options));
 
-                player = room.getPlayer(user);
+                    switch (player.options.uiType) {
+                        case "cardSelect":
+                            let max = player.options.cardselect.max;
 
-                console.log(JSON.stringify(player.options));
+                            if (message.contents.results.length === 0) {
+                                player.noSelection();
+                            }
 
-                switch (player.options.uiType) {
-                    case "cardSelect":
-                        let max = player.options.cardselect.max;
+                            for (let i = 0; i < max && i < message.contents.results.length; i++) {
+                                player.selectResult(message.contents.results[i]);
+                            }
+                            break;
+                        case "binaryoption":
+                            player.selectResult(message.contents.results[0]);
+                            break;
 
-                        if (message.contents.results.length === 0) {
-                            player.noSelection();
-                        }
+                        case "handselect":
+                        case "optionmenu":
+                        case "unitselect":
+                        case "confirmwindow":
+                            player.selectResult(message.contents.results[0]);
+                            break;
+                    }
 
-                        for (let i = 0; i < max && i < message.contents.results.length; i++) {
-                            player.selectResult(message.contents.results[i]);
-                        }
-                        break;
-                    case "binaryoption":
-                        player.selectResult(message.contents.results[0]);
-                        break;
+                    break;
 
-                    case "handselect":
-                    case "optionmenu":
-                    case "unitselect":
-                        player.selectResult(message.contents.results[0]);
-                        break;
-                }
-
-                break;
-
+            }
+        } catch (err) {
+            console.log(err);
         }
+
 
         console.log(`Received message => ${message}`)
     })

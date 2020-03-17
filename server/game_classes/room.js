@@ -92,7 +92,7 @@ class Room {
     }
 
     isFull() {
-        return this.players[1] == null;
+        return !!this.players[1];
     }
 
     getHostName() {
@@ -400,8 +400,45 @@ class Room {
 
     lose(losingPlayer) {
         let winningPlayer = this.getOtherPlayer(losingPlayer.name);
-        winningPlayer;
-        // TODO
+
+        winningPlayer.options = {
+            uiType: 'confirmwindow',
+            confirmwindow: {
+                message: 'You Win!',
+                button: 'Back to matchmaking'
+            }
+        };
+
+        winningPlayer.optionResults = [{func: "redirect"}];
+
+        losingPlayer.options = {
+            uiType: 'confirmwindow',
+            confirmwindow: {
+                message: 'You Lose...',
+                button: 'Back to matchmaking'
+            }
+        };
+
+        losingPlayer.optionResults = [{func: "redirect"}];
+
+        this.sendGameState();
+
+        let room = this;
+        setTimeout(function () {
+            if (room.players[0])
+                room.players[0].redirect();
+
+            if (room.players[1])
+                room.players[1].redirect();
+        }, 15000);
+    }
+
+    removePlayer(player) {
+        if (player === this.players[0]) {
+            this.players[0] = null;
+        } else {
+            this.players[1] = null;
+        }
     }
 
 }

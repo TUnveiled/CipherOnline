@@ -50,6 +50,10 @@
             <button v-on:click="optionMenuSelect(index)">{{option}}</button>
             </div>
         </div>
+        <div class="window" id="confirmwindow" :style="confirmwindow.active ? 'display:block' : 'display:none'">
+            <h5 style="color:black">{{confirmwindow.message}}</h5>
+            <button v-on:click="confirmWindowConfirm()">{{confirmwindow.button}}</button>
+        </div>
         <div class="infopanel">
             <!-- Left Panel that describes the card stored as "infoCard" -->
             <img style="width:100%" :src="infoCard['imageref']" :alt="infoCard['name']+': '+infoCard['title']">
@@ -194,7 +198,7 @@
                                 :style="(phase === 3) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''" v-on:click="nextPhase">
                             Action
                         </button>
-                        <button class="phasebutton" :disabled="!turn || phase !== 3 || attackState.active"
+                        <button class="phasebutton" :disabled="!turn || phase !== 3"
                                 :style="(phase === 4) ? 'background: ' + (turn ? 'lightgreen' : 'lightcoral')  : ''" v-on:click="nextPhase">
                             End
                         </button>
@@ -318,17 +322,8 @@
                 first: null,
                 rps: false, // whether the rps window is being displayed
                 turn: false, // whether it's currently the logged-in player's turn
-                attackState: { // struct for storing data about an attack
-                    active: false, // whether an attack is currently happening
-                    attack: 0, // attack power of the attacking player
-                    defense: 0, // attack power of the defending player
-                    canAttackFrontLine: false, // whether the unit attacking can attack the front line
-                    canAttackBackLine: false, // whether the unit attacking can attack the back line
-                    selectedAttacker: null, // the index of the unit attacking
-                    attackingFrom: null, // the line of the unit attacking
-                    selectedDefender: null, // the index of the unit being attacked
-                    defendingFrom: null, // the line of the unit being attacked
-                    step: -1 // 0 : declaration, 1 : skills,  2 : supp, 3 : supp skills, 4 : crit, 5 : evade, 6 : result
+                confirmwindow : {
+                    active: false,
                 },
                 actionState: {
                     alliedUnits: false,
@@ -648,6 +643,10 @@
                 pf.checkConnection(foo, this);
                 this.optionmenu.active = false;
             },
+        confirmWindowConfirm() {
+                this.optionMenuSelect(0);
+                this.confirmwindow.active = false;
+        },
 
             bondFromHand(index) {
                 let token = this.$store.state.token;
@@ -720,6 +719,10 @@
                     trueIndex += this.oppPlayer.frontLine.length;
                 }
 
+                if (!this.actionState.validTargets[trueIndex]) {
+                    return;
+                }
+
                 function foo() {
                     let message = {
                         type: "selection",
@@ -790,6 +793,12 @@
                         this.optionmenu.prompt = options.optionmenu.prompt;
                         this.optionmenu.active = true;
                         break;
+
+                    case "confirmwindow":
+                        this.confirmwindow = options.confirmwindow;
+                        this.$set(this.confirmwindow, 'active', true);
+                        break;
+
                 }
             },
             updateGame(contents) {
@@ -901,15 +910,15 @@
                 if (contents['options']) {
                    this.decipher(contents['options']);
                 }
+                if (contents['firstPlayer']) {
+                    this.first = this.thisPlayer.username === contents['firstPlayer'];
+                }
                 if (contents['turnNum']) {
                     this.turn = this.first && (contents['turnNum'] % 2 === 1)
                             || !this.first && (contents['turnNum'] % 2 === 0);
                 }
                 if (contents['phaseNum']) {
                     this.phase = contents['phaseNum'];
-                }
-                if (contents['firstPlayer']) {
-                    this.first = this.thisPlayer.username === contents['firstPlayer'];
                 }
             }
         }
