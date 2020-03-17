@@ -59,6 +59,10 @@ let activeCards = {
         // cards being referenced by rooms
     },
 
+    skills: {
+        // skills being referenced by cards
+    },
+
     update(){
         // check what cards are active in each room and for any cards that are here but not in rooms
         // then remove reference from memory here
@@ -537,15 +541,11 @@ wss.on('connection', ws => {
 
                     switch (player.options.uiType) {
                         case "cardSelect":
-                            let max = player.options.cardselect.max;
-
                             if (message.contents.results.length === 0) {
                                 player.noSelection();
-                            }
+                            } else
+                                player.selectResult(message.contents.results);
 
-                            for (let i = 0; i < max && i < message.contents.results.length; i++) {
-                                player.selectResult(message.contents.results[i]);
-                            }
                             break;
                         case "binaryoption":
                             player.selectResult(message.contents.results[0]);

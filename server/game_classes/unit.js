@@ -64,6 +64,10 @@ class Unit {
     addModifier(key, value) {
         this.modifiers[key] = value;
     }
+
+    hasSymbol(symbol) {
+        return this.cards[0].get().symbol === symbol;
+    }
 }
 
 exports.Unit = Unit;

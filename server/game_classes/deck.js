@@ -26,6 +26,15 @@ class Deck {
                             cardData.id = cardID;
                             activeCards.cardObj[cardID] = cardData;
 
+                            if (cardData.skills) {
+                                for (let i = 0; i < cardData.skills.length; i++) {
+                                    if (!activeCards.skills[cardData.skills[i]]) {
+                                        activeCards.skills[cardData.skills[i]] = require(`./skills/${cardData.skills[i]}`).skillObj;
+                                    }
+                                    cardData.skills[i] = activeCards.skills[cardData.skills[i]];
+                                }
+                            }
+
                             for (let i = 0; i < num; i++) {
                                 deck.model.push(new CardCopy(activeCards.cardObj[cardID]));
                             }

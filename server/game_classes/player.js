@@ -31,6 +31,7 @@ class Player {
         this.options = {};              // Object representing the choice this user is being faced with
         this.storedIndex = null;        // Temporary variable used to store information across player responses
         this.noSelection = () => {};    // function that runs if the user responds with an empty array
+        this.promiseFlag = false;
     }
 
 
@@ -71,6 +72,71 @@ class Player {
         }
     }
 
+    async discard(num, message) {
+        // ask the player what they'd like to discard to crit
+        let options = {
+            uiType: 'cardSelect',
+            cardselect: {
+                active: true, // whether the window is visible
+                options: [], // the cards that can be selected
+                min: (num <= this.hand.length()) ? num : this.hand.length(), // the minimum number of cards that need to be selected
+                max: num, // the max number of cards that can be selected
+                message: message, // prompt for selection
+            },
+        };
+
+
+        this.optionResults = [];
+
+        for (let j = 0; j < this.hand.length(); j++) {
+            let card = this.hand.model[j].get();
+            let option = {
+                id: card['id'],
+                valid: true,
+                selected: false
+            };
+
+            options.cardselect.options.push(JSON.parse(JSON.stringify(option)));
+
+            this.optionResults.push({
+                func: "discard"
+            });
+        }
+        this.options = options;
+
+        let player = this;
+        let completed = new Promise(function(resolve) {
+            player.promiseFlag = false;
+
+            setTimeout(function waitForFlag() {
+                if (player.promiseFlag) {
+                    resolve();
+                } else {
+                    setTimeout(waitForFlag, 50);
+                }
+            }, 50)
+
+        });
+
+        this.room.sendGameState();
+
+        await completed;
+    }
+
+    finishDiscard(indices) {
+
+        indices.sort();
+
+        for (let i = indices.length - 1; i > -1; i--) {
+            this.retreat.push(this.hand.grab(indices[i]));
+        }
+
+        this.options = {};
+        this.optionResults = [];
+
+        this.promiseFlag = true;
+    }
+
     mulligan(skipMull) {
 
         // shuffle hand back into deck and draw that many cards back
@@ -98,8 +164,11 @@ class Player {
         this.room.sendGameState();
     }
 
-    selectResult(index) {
+    selectResult(indices) {
         // String representing the player's selection
+        let index = indices;
+        if (Array.isArray(indices))
+            index = indices[0];
 
         let optionResult = this.optionResults[index];
 
@@ -179,6 +248,10 @@ class Player {
 
             case "redirect":
                 this.redirect();
+                break;
+
+            case "discard":
+                this.finishDiscard(indices);
                 break;
 
             case "null":
@@ -561,7 +634,7 @@ class Player {
         this.room.resolveAttack(this.storedIndex, defenderIndex);
     }
 
-    flipForSupport() {
+    async flipForSupport() {
         // move top card to support zone
         this.support = this.deck.draw();
 
@@ -571,8 +644,13 @@ class Player {
         let selectedUnit = this.getSelectedUnit();
 
         // check for successful support
-        if (selectedUnit.getName() !== this.support.get().name)
+        if (selectedUnit.getName() !== this.support.get().name) {
             selectedUnit.addModifier('attack', this.support.get().support);
+            let suppSkill = this.support.getSuppSkill();
+            if (suppSkill) {
+                await suppSkill.effect(this);
+            }
+        }
     }
 
     sendCritOptions(skipCrit) {
@@ -742,6 +820,8 @@ class Player {
 
         // take an orb if you can
         if (selectedUnit.mc) {
+            if (this.room.effects.filter((effect) => effect.type === "doubleOrb").length && this.orbArea.length() > 1)
+                this.takeOrb();
             this.takeOrb();
         } else {
             let cards = selectedUnit.cards;
@@ -803,7 +883,6 @@ class Player {
     }
 
     redirect() {
-        console.log("redirect running");
         this.room.removePlayer(this);
 
         this.socket.send(JSON.stringify({

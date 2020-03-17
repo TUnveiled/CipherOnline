@@ -76,6 +76,10 @@
                 <tr>
                     <td colspan="2">{{infoCard['quote']}}</td>
                 </tr>
+                <tr v-if="!infoCard['skills']"></tr>
+                <tr v-else v-for="(skill, index) in infoCard['skills']" :key="index"><td colspan="2">
+                    {{skill.name}} : [{{skill.suppType ? skill.suppType : ''}} {{skill.type}}] {{skill.desc}}
+                </td></tr>
             </table>
         </div>
         <div class="opp">
@@ -936,6 +940,10 @@
 
     .infopanel > h6, h5 {
         color: black;
+    }
+
+    .infopanel >>> td {
+        font-size: 12px;
     }
 
     .hand {

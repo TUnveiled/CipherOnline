@@ -10,6 +10,7 @@ class Room {
         this.activeCards = activeCards;
         this.firstPlayer = null;
         this.turnPlayer = null;
+        this.effects = [];
     }
 
     addPlayer(name, socket) {
@@ -322,14 +323,23 @@ class Room {
         }
     }
 
-    resolveAttack(attackerIndex, defenderIndex) {
+    async resolveAttack(attackerIndex, defenderIndex) {
         let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
 
         defendingPlayer.storedIndex = defenderIndex;
 
         // add support cards
-        this.turnPlayer.flipForSupport();
-        defendingPlayer.flipForSupport();
+        await this.turnPlayer.flipForSupport();
+        await defendingPlayer.flipForSupport();
+
+        let skipCrit = this.effects.filter((effect) => {
+            return effect.type === "skipCrit";
+        });
+
+        if (skipCrit.length) {
+            this.turnPlayer.sendCritOptions(true);
+            return;
+        }
 
         // ask the attacker if they want to crit
         this.turnPlayer.options = {
@@ -351,6 +361,15 @@ class Room {
 
     askEvade() {
         let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
+
+        let skipEvade = this.effects.filter((effect) => {
+            return (effect.type === "skipEvade") && (effect.hitsMC || !defendingPlayer.getSelectedUnit().mc);
+        });
+
+        if (skipEvade.length) {
+            this.mathAttackResult(false);
+            return;
+        }
 
         // ask the defender if they want to evade
         defendingPlayer.options = {
@@ -393,6 +412,9 @@ class Room {
 
         // check for an empty front line
         this.getOtherPlayer(this.turnPlayer.name).checkForForcedMarch();
+
+        // remove effects that should be removed at this time
+        this.effects = this.effects.filter((effect) => effect.endCondition !== "endOfCombat");
 
         // prompt the turn player to continue their action phase
         this.turnPlayer.actionUnitSelect();
