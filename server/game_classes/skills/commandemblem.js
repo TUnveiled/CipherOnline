@@ -58,7 +58,7 @@ skillObj.effect2 = async function(indices, player) {
         let lineLengths = player.frontline.length() + player.backline.length();
         player.optionResults = [];
         for (let j = 0; j <= lineLengths; j++) {
-            this.optionResults.push({
+            player.optionResults.push({
                 func: "skill"
             });
         }
@@ -78,17 +78,17 @@ skillObj.effect3 = async function(indices, player) {
 
     let index = indices[0];
 
-    // determine what unit corresponds to the response
-    let inFrontLine = (index < player.frontline.length());
-    let lineIndex = (inFrontLine) ? index : index - player.frontline.length();
-
     if (index === player.storedIndex) {
         player.room.sendGameState();
         return;
-    } else if (lineIndex >= player.backline.length()) {
+    } else if (index >= player.backline.length() + player.frontline.length) {
         await skillObj.effect(player);
         return;
     }
+
+    // determine what unit corresponds to the response
+    let inFrontLine = (index < player.frontline.length());
+    let lineIndex = (inFrontLine) ? index : index - player.frontline.length();
 
     // move the unit
     if (inFrontLine) {
