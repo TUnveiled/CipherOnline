@@ -32,6 +32,7 @@ class Player {
         this.storedIndex = null;        // Temporary variable used to store information across player responses
         this.noSelection = () => {};    // function that runs if the user responds with an empty array
         this.promiseFlag = false;
+        this.skillFunc = () => {};
     }
 
 
@@ -252,6 +253,10 @@ class Player {
 
             case "discard":
                 this.finishDiscard(indices);
+                break;
+
+            case "skill":
+                this.skillFunc(indices, this);
                 break;
 
             case "null":
@@ -892,6 +897,7 @@ class Player {
             }
         }));
     }
+
 }
 
 exports.Player = Player;
