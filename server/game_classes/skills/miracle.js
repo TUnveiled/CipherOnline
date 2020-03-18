@@ -10,7 +10,7 @@ skillObj.effect = async function(player) {
     if (this.condition(player))
         player.room.effects.push({
             endCondition: "endOfCombat",
-            effect: "skipCrit"
+            type: "skipCrit"
         });
 };
 
