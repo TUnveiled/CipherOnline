@@ -41,7 +41,9 @@ skillObj.effect = async function(player) {
 };
 
 skillObj.effect2 = async function(indices, player) {
-    let skipEffect = indices[0];
+    let skipEffect = indices;
+    if (Array.isArray(indices))
+        skipEffect = indices[0];
 
     if (!skipEffect) {
 
@@ -76,12 +78,15 @@ skillObj.effect2 = async function(indices, player) {
 
 skillObj.effect3 = async function(indices, player) {
 
-    let index = indices[0];
+    let index = indices;
+    if (Array.isArray(indices))
+        index = indices[0];
+
 
     if (index === player.storedIndex) {
         player.room.sendGameState();
         return;
-    } else if (index >= player.backline.length() + player.frontline.length) {
+    } else if (index >= player.backline.length() + player.frontline.length()) {
         await skillObj.effect(player);
         return;
     }
