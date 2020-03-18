@@ -827,7 +827,7 @@ class Player {
         if (selectedUnit.mc) {
             if (this.room.effects.filter((effect) => effect.type === "doubleOrb").length && this.orbArea.length() > 1)
                 this.takeOrb();
-            this.takeOrb();
+            return this.takeOrb();
         } else {
             let cards = selectedUnit.cards;
 
@@ -842,7 +842,7 @@ class Player {
             } else {
                 this.backline.remove(lineIndex);
             }
-
+            return 1;
         }
     }
 
@@ -856,9 +856,11 @@ class Player {
         if (this.orbArea.length()) {
             // move the orb from the orb area to hand
             this.hand.push(this.orbArea.pop());
+            return 1;
         } else {
             // lose the game if you cant take an orb you need to take
             this.room.lose(this);
+            return 0;
         }
     }
 
