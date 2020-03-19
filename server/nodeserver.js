@@ -530,6 +530,13 @@ wss.on('connection', ws => {
                     };
                     ws.send(JSON.stringify(response));
                     break;
+                case "getAllData":
+                    response = {
+                        type: 'allCards',
+                        contents: activeCards.cardObj
+                    };
+                    ws.send(JSON.stringify(response));
+                    break;
 
                 case "selection":
                     // Room info
