@@ -68,6 +68,9 @@ async function checkConnection(generateMessage, activeComponent) {
             case "newCard":
                 if (activeComponent.seenCards && response.contents)
                     activeComponent.updateSeenCards(response.contents.id, response.contents);
+                if (activeComponent.infoPanelCard) {
+                    activeComponent.updateInfoPanel(response.contents);
+                }
                 break;
         }
     }

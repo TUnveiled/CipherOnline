@@ -12,6 +12,7 @@ import matchmaking from '@/components/matchmaking'
 import room from '@/components/room'
 import game from '@/components/game';
 import account from './components/account'
+import deckbuilding from './components/deckbuilding'
 
 Vue.use(VueRouter);
 
@@ -66,6 +67,12 @@ const router = new VueRouter({
             path: '/account',
             name: 'account',
             component: account,
+            meta: {requiresAuth: true}
+        },
+        {
+            path: '/decks',
+            name: 'deck',
+            component: deckbuilding,
             meta: {requiresAuth: true}
         }
     ]

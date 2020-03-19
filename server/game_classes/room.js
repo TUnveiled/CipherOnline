@@ -398,7 +398,7 @@ class Room {
         if (!evade) {
             let attackerWins = attackingUnit.getAttack() >= defendingUnit.getAttack();
             if (attackerWins) {
-                
+
                 if (!defendingPlayer.destroySelectedUnit())
                     return;
             }
@@ -455,8 +455,6 @@ class Room {
                 room.players[1].redirect();
         }, 15000);
 
-        await new Promise(() => {
-        });
     }
 
 

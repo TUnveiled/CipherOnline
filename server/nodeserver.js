@@ -44,6 +44,7 @@ app.listen(3000, () => {
 // eslint-disable-next-line no-unused-vars
 let Room = require("./game_classes/room").Room;
 const fb = require('./firebaseConfig.js');
+const Deck = require('./game_classes/deck').Deck;
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 4969 });
 let rooms = [];
@@ -68,6 +69,8 @@ let activeCards = {
         // then remove reference from memory here
     }
 };
+
+new Deck(fb, activeCards);
 
 // two objects to reduce complexity
 let tokensToUsers = {

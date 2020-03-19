@@ -409,7 +409,7 @@ class Player {
             });
         }
 
-        if (meetsDeployCost && isDeployed) {
+        if (meetsDeployCost && isDeployed && !cardData['promotion']) {
             this.options.optionmenu.options.push("Level Up");
             this.optionResults.push({
                 func: "levelup"
