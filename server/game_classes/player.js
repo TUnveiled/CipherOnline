@@ -539,7 +539,11 @@ class Player {
 
     initializeDeck(fb, activeCards) {
         // create deck object using database
-        this.deck = new Deck(fb, activeCards);
+        this.deck = new Deck(fb, activeCards, this.dref);
+    }
+
+    setDeck(dref) {
+        this.dref = dref;
     }
 
     untapAll() {

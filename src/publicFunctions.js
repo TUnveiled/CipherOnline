@@ -74,6 +74,21 @@ async function checkConnection(generateMessage, activeComponent) {
                     activeComponent.displayAll(response.contents);
                 }
                 break;
+            case "decknames":
+                if (activeComponent.deckNames) {
+                    activeComponent.deckNames = response.contents.decknames;
+                }
+                break;
+            case "deck":
+                if (activeComponent.deckNames) {
+                    activeComponent.updateDeck(response.contents);
+                }
+                break;
+            case "saved":
+                if (activeComponent.deckNames) {
+                    activeComponent.savedSuccessfully();
+                }
+                break;
         }
     }
 }

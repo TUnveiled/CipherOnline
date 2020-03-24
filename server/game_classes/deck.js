@@ -1,11 +1,14 @@
 let CardCopy = require("./CardCopy").CardCopy;
 
 class Deck {
-    constructor(fb, activeCards) {
+    constructor(fb, activeCards, dref) {
         this.model = [];
         let deck = this;
         // get deck from database
-        fb.publicCollection.doc("Starter Deck 12: Three Houses").get().then(function (doc) {
+        if (!dref)
+            dref = fb.publicCollection.doc("Starter Deck 12: Three Houses");
+
+        dref.get().then(function (doc) {
             let cards = doc.data();
             // TODO : send users deck length
 

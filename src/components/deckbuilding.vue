@@ -34,8 +34,12 @@
                         <bindercard
                                 v-if="queriedCards[(row - 1) * 5 + col - 1]"
                                 :cardref="queriedCards[(row - 1) * 5 + col - 1]"
-                                :canadd="true" :count="0"
-                                @hover="updateInfoPanel(queriedCards[(row - 1) * 5 + col - 1])"></bindercard>
+                                :canadd="queriedCards[(row - 1) * 5 + col - 1].count < 4"
+                                :count="queriedCards[(row - 1) * 5 + col - 1].count"
+                                @hover="updateInfoPanel(queriedCards[(row - 1) * 5 + col - 1])"
+                                @plus="addCard(queriedCards[(row - 1) * 5 + col - 1])"
+                                @minus="removeCard(queriedCards[(row - 1) * 5 + col - 1])">
+                        </bindercard>
                     </td>
                 </tr>
             </table>
@@ -72,32 +76,39 @@
         </div>
         <div class="deckarea">
             <h3>Deck</h3>
-            <table style="width: 100%">
-                <tr style="width: 100%">
+            <table style="min-width: 100%">
+                <tr style="min-width: 100%">
                     <td style="width: 20%">
                         <table>
                             <tr>
                                 <td>Load:</td>
-                                <td><select>
+                                <td><select @change="getDeck($event)">
                                     <option value="">None</option>
-                                    <option v-for="(deck, index) in deckNames" :key="index" :value="deck">{{deck}}</option>
+                                    <option v-for="(deck, index) in deckNames" :key="index" :value="deck">
+                                        {{deck}}
+                                    </option>
                                 </select></td>
                             </tr>
                             <tr>
-                                <td>Name:</td> <td><input type="text" style="width: 97%;"></td>
+                                <td>Name:</td> <td><input type="text" style="width: 97%;" v-model="deck.name"></td>
                             </tr>
-                            <tr><td></td><td style="text-align: right;"><button>Save</button></td></tr>
+                            <tr><td></td><td style="text-align: right;"><button v-on:click="save()">Save</button></td></tr>
+                            <tr><td colspan="2" style="text-align: right; color: forestgreen; width: 100%;">{{savedText}}</td></tr>
+                            <tr><td colspan="2" style="text-align: center;">{{deck.cards.reduce((a, b) => a + (b["count"] || 0), 0)}} / 50 Cards</td></tr>
                         </table>
                     </td>
-                    <td style="width: 80%">
-                        <table v-if="deck.length > 0">
+                    <td style="min-width: 80%">
+                        <table v-if="deck.cards.length > 0" >
                             <tr>
                                 <td v-for="index in deck.cards.length" :key="index">
                                     <bindercard
-                                            v-if="deck.cards[index]"
-                                            :cardref="deck.cards[index]"
-                                            :canadd="true" :count="0"
-                                            @hover="updateInfoPanel(deck.cards[index])"></bindercard>
+                                            v-if="deck.cards[index - 1]"
+                                            :cardref="deck.cards[index - 1]"
+                                            :canadd="true" :count="deck.cards[index - 1].count"
+                                            @hover="updateInfoPanel(deck.cards[index - 1])"
+                                            @plus="addCard(deck.cards[index - 1])"
+                                            @minus="removeCard(deck.cards[index - 1])"
+                                            :indeck="true"></bindercard>
                                 </td>
                             </tr>
                         </table>
@@ -131,22 +142,14 @@
                 },
                 deckNames: [],
                 deck: {
-                    cards: []
-                }
+                    cards: [],
+                    name: ""
+                },
+                savedText: ""
             }
         },
         mounted() {
-            let serverConnection = this.$store.state.connection;
-            function foo() {
-                let message = {
-                    type: "getAllData",
-                    contents: {
-                    }
-                };
-                serverConnection.send(JSON.stringify(message));
-            }
-            //  gets card data from database if it isn't already stored
-            pf.checkConnection(foo, this);
+            this.initialize();
         },
         methods: {
             updateInfoPanel(cardData) {
@@ -160,6 +163,10 @@
 
                 // copy the array into the queried cards
                 this.queriedCards = this.allCards.slice();
+
+                this.queriedCards.forEach((card) => {
+                    card.count = 0;
+                });
 
                 this.searchChanged();
             },
@@ -179,6 +186,126 @@
                             return card1.name.localeCompare(card2.name);
                     }
                 });
+            },
+            addCard(cardref) {
+                if (!this.deck.cards.includes(cardref)) {
+                    this.deck.cards.push(cardref);
+                }
+                if (cardref.count < 4){
+                    // make sure vue realizes we're making changes
+                    let temp = cardref.count + 1;
+                    delete cardref.count;
+                    this.$set(cardref, 'count', temp);
+                }
+            },
+            removeCard(cardref) {
+                if (cardref.count > 1) {
+                    this.$set(cardref, 'count', cardref.count - 1);
+                } else if (cardref.count === 1) {
+                    this.$set(cardref, 'count', cardref.count - 1);
+                    this.deck.cards = this.deck.cards.filter((card) => {
+                        return card !== cardref;
+                    });
+                }
+            },
+            save() {
+                let uid = this.$store.state.currentUser.uid;
+                let serverConnection = this.$store.state.connection;
+                let dname = this.deck.name;
+                let deck = {};
+
+                this.deck.cards.forEach((card) => {
+                    deck[card.id] = card.count;
+                });
+
+                function foo() {
+                    let message = {
+                        type: "saveDeck",
+                        contents: {
+                            deck: deck,
+                            uid: uid,
+                            dname: dname
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                //  gets card data from database if it isn't already stored
+                pf.checkConnection(foo, this);
+
+            },
+            initialize() {
+                if (!this.$store.state.currentUser) {
+                    setTimeout(this.initialize, 50);
+                    return;
+                }
+
+                let serverConnection = this.$store.state.connection;
+                let uid = this.$store.state.currentUser.uid;
+                function foo() {
+                    let message = {
+                        type: "getAllData",
+                        contents: {
+                            uid: uid
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+                //  gets card data from database if it isn't already stored
+                pf.checkConnection(foo, this);
+            },
+            getDeck(event) {
+                let name = event.target.value;
+                this.deck.name = name;
+                if (name === "")
+                    return;
+                let uid = this.$store.state.currentUser.uid;
+                let serverConnection = this.$store.state.connection;
+
+
+
+                function foo() {
+                    let message = {
+                        type: "getDeck",
+                        contents: {
+                            dname: name,
+                            uid: uid,
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+
+                pf.checkConnection(foo, this);
+            },
+
+            updateDeck(deck) {
+
+                this.allCards.forEach((card) => {
+                    if (deck[card.id]) {
+                        if (!this.deck.cards.includes(card)) {
+                            this.deck.cards.push(card);
+                        }
+                        card.count = deck[card.id];
+
+                    } else {
+                        if (this.deck.cards.includes(card)) {
+                            this.deck.cards = this.deck.cards.filter((card2) => {
+                                return card !== card2;
+                            });
+                        }
+                        card.count = 0;
+                    }
+                });
+            },
+            savedSuccessfully() {
+                this.savedText = "Saved!";
+
+                let deckbuilding = this;
+                setTimeout(() => {
+                    deckbuilding.savedText = "";
+                }, 3000);
             }
         }
     }
@@ -215,7 +342,7 @@
 
     .deckarea {
         grid-area: deckar;
-        width: 100%
+        overflow-x: scroll;
     }
     .grid-container {
         max-width: 1280px;
@@ -235,10 +362,6 @@
         padding: 2px;
         font-size: 16px;
         color: black;
-    }
-
-    .playarea >>> tr {
-        height: 80px;
     }
 
     input[type=text] {

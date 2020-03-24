@@ -2,15 +2,16 @@
     <div class="unit" v-on:mouseenter="onHover" v-on:mouseleave="stopHover">
         <div class="title" v-if="verbose">{{cardref.name}}</div>
         <img class="image" :src="cardref.imageref" alt="Loading..." :style="
-             ((canadd === true) ? '' : 'opacity: 0.5')">
+             ((canadd === true) ? '' : 'opacity: 0.5;') +
+             ((indeck) ? 'min-width: 100%; width: unset;' : '')">
         <div class="plus" v-if="verbose">
-            <button class="plus">+</button>
+            <button class="plus" v-on:click="plus()">+</button>
         </div>
-        <div class="count" v-if="verbose">
-            {{0}}
+        <div class="count" v-if="verbose || indeck">
+            {{count}}
         </div>
         <div class="minus" v-if="verbose">
-            <button class="minus">-</button>
+            <button class="minus" v-on:click="minus()">-</button>
         </div>
     </div>
 </template>
@@ -29,7 +30,8 @@
         props: {
             canadd: Boolean,
             cardref: Object,
-            count: Number
+            count: Number,
+            indeck: Boolean
         },
         methods: {
             onHover() {
@@ -38,6 +40,12 @@
             },
             stopHover() {
                 this.verbose = false;
+            },
+            plus() {
+                this.$emit('plus');
+            },
+            minus() {
+                this.$emit('minus');
             }
         }
     }

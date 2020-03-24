@@ -10,7 +10,13 @@
             <button v-else v-on:click="leaveRoom()">Leave Room</button><br><br>
             <button v-if="host" v-on:click="deleteRoom">Delete Room</button><br><br>
             <button v-if="host" v-on:click="startGame()" :disabled="!otherReady || !hostReady">Start Game</button><br><br>
-            <button v-on:click="toggleReady()">{{ready ? "Unready" : "Ready"}}</button>
+            <select @change="setDeck($event)">
+                <option v-for="(deck, index) in deckNames" :key="index" :value="deck">
+                    {{deck}}
+                </option>
+                <option value="Starter Deck 12: Three Houses">Starter Deck</option>
+            </select><br><br>
+                <button v-on:click="toggleReady()">{{ready ? "Unready" : "Ready"}}</button>
         </div>
     </div>
 </template>
@@ -36,7 +42,8 @@
                 host: false,      // is the current user the host?
                 ready: false,     // is the current user ready?
                 hostReady: false, // is the host ready?
-                otherReady: false // is the non-host ready?
+                otherReady: false, // is the non-host ready?
+                deckNames: []
             }
         },
         methods: {
@@ -114,12 +121,19 @@
                 pf.checkConnection(foo, this);
             },
             getDataFromServer() {
+                if (!this.$store.state.currentUser) {
+                    setTimeout(this.getDataFromServer, 50);
+                    return;
+                }
+
                 let serverConnection = this.$store.state.connection;
                 let token = this.$store.state.token;
+                let uid = this.$store.state.currentUser.uid;
                 function foo() {
                     let message = {
                         type: "GetRoomData",
-                        contents: {token: token}
+                        contents: {token: token,
+                                    uid: uid}
                     };
 
                     serverConnection.send(JSON.stringify(message));
@@ -139,8 +153,33 @@
                     this.otherplayer = contents.otherplayer;
 
                 this.ready = this.host ? this.hostReady : this.otherReady;
-            }
+            },
+            setDeck(event) {
+                let name = event.target.value;
+                if (name === "")
+                    return;
+                let uid = this.$store.state.currentUser.uid;
+                let serverConnection = this.$store.state.connection;
+                let token = this.$store.state.token;
+
+
+                function foo() {
+                    let message = {
+                        type: "setDeck",
+                        contents: {
+                            dname: name,
+                            uid: uid,
+                            token: token
+                        }
+                    };
+                    serverConnection.send(JSON.stringify(message));
+                }
+
+
+                pf.checkConnection(foo, this);
+            },
         },
+
         components: {
             Userbar
         }
@@ -159,5 +198,17 @@
         text-align: center;
         padding: 0;
         overflow: hidden;
+    }
+
+    select {
+        min-height: 10px;
+        padding: 1px;
+        border-width: 3px;
+        display: block;
+        margin: auto;
+        border-radius: 6px;
+        font-size: 14px;
+        -webkit-box-shadow: none;
+        box-shadow: none;
     }
 </style>

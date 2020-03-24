@@ -134,7 +134,6 @@ wss.on('connection', ws => {
                     host = tokensToUsers[message.contents.token];
                     if (!host) break;
                     rooms.push(new Room(host, message.contents.name, ws, activeCards));
-                    // TODO : remove
                     fb.roomsCollection.doc(host).set({
                         host: host,
                         other: "",
@@ -199,48 +198,19 @@ wss.on('connection', ws => {
                         roomToJoin.players[0].socket.send(JSON.stringify(hostResponse));
                     }
 
+                    break;
 
-                    // // TODO : remove
-                    // // check to see if the room is available
-                    // fb.roomsCollection.doc(message.contents.host).get().then(function(doc) {
-                    //     // if the room doesn't have a 2 users
-                    //     if (doc.data().other.localeCompare("") === 0) {
-                    //         // add this user to the room in the database
-                    //         fb.roomsCollection.doc(message.contents.host).update({
-                    //             other: uname
-                    //         }).then(function() {
-                    //             // redirect this user to the room page
-                    //             let routeResponse = {
-                    //                 type: "route",
-                    //                 contents:{
-                    //                     destination: '/room/' + message.contents.host
-                    //                 }
-                    //             };
-                    //             // route to the new room
-                    //             ws.send(JSON.stringify(routeResponse));
-                    //         }).catch(err => {
-                    //
-                    //             let errorResponse = {
-                    //                 type: "error",
-                    //                 contents:{
-                    //                     errorMessage: err
-                    //                 }
-                    //             };
-                    //             //error message
-                    //             ws.send(JSON.stringify(errorResponse));
-                    //         })
-                    //     } else {
-                    //
-                    //         let fullResponse = {
-                    //             type: "full",
-                    //             contents:{
-                    //                 errorMessage: "The Room is Full."
-                    //             }
-                    //         };
-                    //         //error message
-                    //         ws.send(JSON.stringify(fullResponse));
-                    //     }
-                    // });
+                case "saveDeck":
+
+                    fb.usersCollection.doc(message.contents.uid).collection("decks")
+                        .doc(message.contents.dname).set(message.contents.deck).then(() => {
+                        response = {
+                            type: "saved",
+                            contents: {}
+                        };
+
+                        ws.send(JSON.stringify(response));
+                    });
 
                     break;
 
@@ -305,9 +275,53 @@ wss.on('connection', ws => {
                             otherplayer: room.getOtherName(),  // name of non-host
                             roomName: room.name,     // name of room
                             hostReady: room.isReady(0), // is the host ready?
-                            otherReady: room.isReady(1)// is the non-host ready?
+                            otherReady: room.isReady(1),// is the non-host ready?
                         }
                     };
+
+
+                    fb.usersCollection.doc(message.contents.uid).collection("decks").get()
+                        .then(querySnapshot => {
+                            // eslint-disable-next-line no-inner-declarations
+                            function checkLegalDeck(deck) {
+                                // find number of cards
+                                let sum = Object.values(deck).reduce((a, b) => {
+                                    if (typeof a !== 'number') {
+                                        if (typeof b !== 'number')
+                                            return 0;
+                                        else
+                                            return b;
+                                    } else {
+                                        if (typeof b !== 'number')
+                                            return a;
+                                        else
+                                            return a + b;
+                                    }
+                                });
+
+                                let has1Cost = Object.keys(deck).filter(id => {
+                                    return activeCards.cardObj[id]['cost'] === 1;
+                                }).length > 0;
+
+                                return !(sum < 50 || !has1Cost);
+
+                            }
+
+                            let decknames = [];
+                            querySnapshot.forEach(doc => {
+                                if (checkLegalDeck(doc.data()))
+                                    decknames.push(doc.id);
+                            });
+                            response = {
+                                type: 'decknames',
+                                contents: {
+                                    decknames: decknames
+                                }
+                            };
+
+                            ws.send(JSON.stringify(response));
+
+                        });
 
                     ws.send(JSON.stringify(response));
 
@@ -531,11 +545,60 @@ wss.on('connection', ws => {
                     ws.send(JSON.stringify(response));
                     break;
                 case "getAllData":
+
+                    fb.usersCollection.doc(message.contents.uid).collection("decks").get()
+                        .then(querySnapshot => {
+                            let decknames = [];
+                            querySnapshot.forEach(doc => {
+                                decknames.push(doc.id);
+                            });
+                            response = {
+                                type: 'decknames',
+                                contents: {
+                                    decknames: decknames
+                                }
+                            };
+
+                            ws.send(JSON.stringify(response));
+
+                        });
+
                     response = {
                         type: 'allCards',
                         contents: activeCards.cardObj
                     };
                     ws.send(JSON.stringify(response));
+
+                    break;
+
+                case "getDeck":
+                    fb.usersCollection.doc(message.contents.uid).collection("decks")
+                        .doc(message.contents.dname).get().then(doc => {
+                        let data = doc.data();
+
+                        response = {
+                            type: 'deck',
+                            contents: data
+                        };
+
+                        ws.send(JSON.stringify(response));
+
+                    });
+                    break;
+
+                case "setDeck":
+                    user = tokensToUsers[message.contents.token];
+                    room = rooms.filter(room => {
+                        return room.containsUser(user);
+                    })[0];
+
+                    player = room.getPlayer(user);
+
+                    if (message.contents.dname === "Starter Deck 12: Three Houses")
+                        player.setDeck(null);
+                    else
+                        player.setDeck(fb.usersCollection.doc(message.contents.uid).collection('decks').doc(message.contents.dname));
+
                     break;
 
                 case "selection":
