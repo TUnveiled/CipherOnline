@@ -43,7 +43,7 @@
                 }
                 // username should be between 3 and 15 characters
                 if (username.length < 3 || username.length > 15) {
-                    this.response += 'Passwords must be between 3 and 15 characters\n';
+                    this.response += 'Usernames must be between 3 and 15 characters\n';
                     valid = false;
                 }
 
