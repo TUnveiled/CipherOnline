@@ -26,7 +26,7 @@
                          'border: ' + ((element.selected) ? '3px solid green' : '3px solid white') + ';' +
                          'border-radius: 12px;'
                         "
-                        v-on:mouseenter="infoCard=fetchCardData(element.id)"
+                        v-on:mouseenter="setInfoCard(seenCards[element.id])"
                         v-on:click="select(element)">
 
                     </td>
