@@ -117,7 +117,10 @@ class Room {
     }
 
     hostedBy(name) {
-        return this.players[0].name === name;
+        if(this.players[0])
+            return this.players[0].name === name;
+        else
+            return false;
     }
 
     readyPlayer(num) {
@@ -391,6 +394,7 @@ class Room {
 
     mathAttackResult(evade=false) {
         let defendingPlayer = this.getOtherPlayer(this.turnPlayer.name);
+        console.log(defendingPlayer);
         let attackingUnit = this.turnPlayer.getSelectedUnit();
         let defendingUnit = defendingPlayer.getSelectedUnit();
 
@@ -399,8 +403,10 @@ class Room {
             let attackerWins = attackingUnit.getAttack() >= defendingUnit.getAttack();
             if (attackerWins) {
 
-                if (!defendingPlayer.destroySelectedUnit())
+                if (!defendingPlayer.destroySelectedUnit()) {
+                    console.log("game over");
                     return;
+                }
             }
         }
 
@@ -408,17 +414,24 @@ class Room {
         defendingPlayer.discardSupport();
         this.turnPlayer.discardSupport();
 
-        delete attackingUnit.modifiers.attack;
-        delete defendingUnit.modifiers.attack;
+        console.log("supports discarded");
+
+        defendingPlayer.removeAllModifiers("attack");
+        this.turnPlayer.removeAllModifiers("attack");
 
         // check for an empty front line
         this.getOtherPlayer(this.turnPlayer.name).checkForForcedMarch();
 
+        console.log("past forced march");
+
         // remove effects that should be removed at this time
         this.effects = this.effects.filter((effect) => effect.endCondition !== "endOfCombat");
 
+        console.log("effects removed: " + JSON.stringify(this.effects));
+
         // prompt the turn player to continue their action phase
         this.turnPlayer.actionUnitSelect();
+        console.log("finished actionUnitSelect")
     }
 
     lose(losingPlayer) {

@@ -6,7 +6,7 @@ const app = express();
 // const history = require('connect-history-api-fallback');
 
 const fs = require("fs");
-const localObjString =  fs.readFileSync("./private/local.json");
+const localObjString =  fs.readFileSync("../private/local.json");
 const localObj = JSON.parse(localObjString);
 
 
@@ -35,9 +35,9 @@ app.get('/:no/:way', (req, res, next) => {
 
 //app.use(history({verbose: true}));
 
-app.listen(3000, () => {
+app.listen(80, () => {
     // eslint-disable-next-line no-console
-    console.log("App listening on port 3000")
+    console.log("App listening on port 80")
 });
 
 // WebSocket Testing
@@ -82,8 +82,8 @@ let usersToSockets = {
 
 
 wss.on('connection', ws => {
-    ws.on('close', function() {
-        console.log("lost connection");
+    ws.on('close', function(event) {
+        console.log("lost connection: " + JSON.stringify(event));
     });
     ws.on('message', message => {
         message = JSON.parse(message);
@@ -222,7 +222,7 @@ wss.on('connection', ws => {
                     };
 
                     for (let i = 0; i < rooms.length; i++) {
-                        let room = rooms[i]
+                        let room = rooms[i];
                         if (!room.players[0] && !room.players[1]) {
                             rooms.splice(i--, 1);
                         } else {
@@ -637,6 +637,7 @@ wss.on('connection', ws => {
             }
         } catch (err) {
             console.log(err);
+
         }
 
 

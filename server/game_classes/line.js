@@ -70,6 +70,12 @@ class Line {
             unit.untap();
         });
     }
+
+    removeAllModifiers(mod) {
+        this.model.forEach((unit) => {
+            unit.removeMod(mod);
+        });
+    }
 }
 
 exports.Line = Line;

@@ -4,7 +4,6 @@
         <div id="maindiv">
             <h1>You are logged in.</h1><br>
             <router-link class="link" to="/matchmaking">Play</router-link><br>
-            <router-link class="link" to="/account">Account (TODO)</router-link><br>
             <router-link class="link" to="/decks">Deckbuilder</router-link><br>
         </div>
     </div>

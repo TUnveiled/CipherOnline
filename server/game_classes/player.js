@@ -708,6 +708,11 @@ class Player {
                 this.room.askEvade();
             };
 
+            if (this.hand.length() === 0) {
+                this.noSelection();
+                return;
+            }
+
             // update front end
             this.room.sendGameState();
 
@@ -731,7 +736,10 @@ class Player {
         if (selectedUnit.checkName(selectedDiscard.name)) {
             this.retreat.push(this.hand.grab(handIndex));
 
-            selectedUnit.modifiers['attack'] += selectedUnit.getAttack();
+            if (selectedUnit.modifiers['attack'])
+                selectedUnit.modifiers['attack'] += selectedUnit.getAttack();
+            else
+                selectedUnit.modifiers['attack'] = selectedUnit.getAttack();
         }
 
         this.options = {};
@@ -805,6 +813,11 @@ class Player {
                 // calculate final attack result
                 this.room.mathAttackResult();
             };
+
+            if (this.hand.length() === 0) {
+                this.noSelection();
+                return;
+            }
 
             // update the front end
             this.room.sendGameState();
@@ -902,6 +915,11 @@ class Player {
                 destination: '/matchmaking'
             }
         }));
+    }
+
+    removeAllModifiers(mod) {
+        this.frontline.removeAllModifiers(mod);
+        this.backline.removeAllModifiers(mod);
     }
 
 }

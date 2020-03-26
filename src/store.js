@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 const fb = require('./firebaseConfig.js');
-const url = 'ws://127.0.0.1:4969';
+const url = 'ws://50.72.194.158:4969';
 
 Vue.use(Vuex);
 

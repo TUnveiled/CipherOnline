@@ -1,6 +1,7 @@
 async function checkConnection(generateMessage, activeComponent) {
     let serverConnection = activeComponent.$store.state.connection;
     serverConnection.onclose = function () {
+        alert("connection closed");
         setTimeout(checkConnection, 100, function() {
             if (activeComponent.$store.state.token) {
                 let message = {
@@ -11,6 +12,8 @@ async function checkConnection(generateMessage, activeComponent) {
                 };
 
                 serverConnection.send(JSON.stringify(message));
+            } else {
+                serverConnection.onclose(undefined);
             }
 
         }, activeComponent);
@@ -20,6 +23,7 @@ async function checkConnection(generateMessage, activeComponent) {
     } else if (serverConnection.readyState === 1) {
         generateMessage();
     } else if (serverConnection.readyState > 1) {
+        alert("connection not ready");
         let store = activeComponent.$store;
         const connectionPromise = new Promise(function (resolve) {
             store.dispatch('resetConnection');

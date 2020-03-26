@@ -176,7 +176,7 @@
                     <td>
                         <!-- Opponent's Support Area -->
                         <div v-if="oppPlayer.support && oppPlayer.support !== '0'">
-                            <div v-if="!seenCards[oppPlayer.support] && oppPlayer.support === '0'"><a v-if="fetchCardData(oppPlayer.support)">Support</a></div>
+                            <div v-if="!seenCards[oppPlayer.support]"><a v-if="fetchCardData(oppPlayer.support)">Support</a></div>
                             <supportcard v-else :oref="seenCards[oppPlayer.support]"
                                          @hover="setInfoCard(seenCards[oppPlayer.support])"></supportcard>
                         </div>
@@ -213,7 +213,7 @@
                         <div v-if="thisPlayer.support && thisPlayer.support !== '0'">
                             <div v-if="!seenCards[thisPlayer.support]"><a v-if="fetchCardData(thisPlayer.support)">Support</a></div>
                             <supportcard v-else :oref="seenCards[thisPlayer.support]"
-                                         @hover="setInfoCard(seenCards[thisPlayer.support])">></supportcard>
+                                         @hover="setInfoCard(seenCards[thisPlayer.support])"></supportcard>
                         </div>
                         <div v-else>
                             Support
@@ -807,123 +807,129 @@
             },
             updateGame(contents) {
                 let temp;
-                if (contents['thisPlayer']) {
-                    temp = contents['thisPlayer'];
-                    if (temp['frontLine']) {
-                        this.thisPlayer.frontLine = temp['frontLine'];
-                        for(let i = 0; i < temp['frontLine'].length; i++) {
-                            if (!this.seenCards[temp['frontLine'][i].cards[0].id]) {
-                                this.fetchCardData(temp['frontLine'][i].cards[0].id);
+                try {
+                    if (contents['thisPlayer']) {
+                        temp = contents['thisPlayer'];
+                        if (temp['frontLine']) {
+                            this.thisPlayer.frontLine = temp['frontLine'];
+                            for (let i = 0; i < temp['frontLine'].length; i++) {
+                                if (!this.seenCards[temp['frontLine'][i].cards[0].id]) {
+                                    this.fetchCardData(temp['frontLine'][i].cards[0].id);
+                                }
+                            }
+                        }
+                        if (temp['backLine']) {
+                            this.thisPlayer.backLine = temp['backLine'];
+                            for (let i = 0; i < temp['backLine'].length; i++) {
+                                if (!this.seenCards[temp['backLine'][i].cards[0].id])
+                                    this.fetchCardData(temp['backLine'][i].cards[0].id);
+                            }
+                        }
+                        if (temp['support']) {
+                            this.thisPlayer.support = temp['support'];
+                            if (!this.seenCards[temp['support']] && temp['support'] !== '0')
+                                this.fetchCardData(temp['support']);
+
+                        }
+                        if (temp['deck'] || temp['deck'] === 0) {
+                            this.thisPlayer.deck = temp['deck'];
+                        }
+                        if (temp['retreat']) {
+                            this.thisPlayer.retreat = temp['retreat'];
+                        }
+                        if (temp['boundless']) {
+                            this.thisPlayer.boundless = temp['boundless'];
+                        }
+                        if (temp['orbs'] || temp['orbs'] === 0) {
+                            this.thisPlayer.orbs = temp['orbs'];
+                        }
+                        if (temp['knownOrbs']) {
+                            this.thisPlayer.knownOrbs = temp['knownOrbs'];
+                        }
+                        if (temp['faceUpOrbs']) {
+                            this.thisPlayer.faceUpOrbs = temp['faceUpOrbs'];
+                        }
+                        if (temp['bonds']) {
+                            this.thisPlayer.bonds = temp['bonds'];
+                        }
+                        if (temp['hand']) {
+                            this.thisPlayer.hand = temp['hand'];
+                            for (let i = 0; i < temp['hand'].length; i++) {
+                                if (!this.seenCards[temp['hand'][i].id])
+                                    this.fetchCardData(temp['hand'][i].id);
                             }
                         }
                     }
-                    if (temp['backLine']) {
-                        this.thisPlayer.backLine = temp['backLine'];
-                        for(let i = 0; i < temp['backLine'].length; i++) {
-                            if (!this.seenCards[temp['backLine'][i].cards[0].id])
-                                this.fetchCardData(temp['backLine'][i].cards[0].id);
+                    if (contents['oppPlayer']) {
+                        temp = contents['oppPlayer'];
+                        if (temp['frontLine']) {
+                            this.oppPlayer.frontLine = temp['frontLine'];
+                            for (let i = 0; i < temp['frontLine'].length; i++) {
+                                if (!this.seenCards[temp['frontLine'][i].cards[0].id])
+                                    this.fetchCardData(temp['frontLine'][i].cards[0].id);
+                            }
+                        }
+                        if (temp['backLine']) {
+                            this.oppPlayer.backLine = temp['backLine'];
+                            for (let i = 0; i < temp['backLine'].length; i++) {
+                                if (!this.seenCards[temp['backLine'][i].cards[0].id])
+                                    this.fetchCardData(temp['backLine'][i].cards[0].id);
+                            }
+                        }
+                        if (temp['support']) {
+                            this.oppPlayer.support = temp['support'];
+                            if (!this.seenCards[temp['support']] && temp['support'] !== '0')
+                                this.fetchCardData(temp['support']);
+                        }
+                        if (temp['deck'] || temp['deck'] === 0) {
+                            this.oppPlayer.deck = temp['deck'];
+                        }
+                        if (temp['retreat']) {
+                            this.oppPlayer.retreat = temp['retreat'];
+                        }
+                        if (temp['boundless']) {
+                            this.oppPlayer.boundless = temp['boundless'];
+                        }
+                        if (temp['orbs'] || temp['orbs'] === 0) {
+                            this.oppPlayer.orbs = temp['orbs'];
+                        }
+                        if (temp['knownOrbs']) {
+                            this.oppPlayer.knownOrbs = temp['knownOrbs'];
+                        }
+                        if (temp['faceUpOrbs']) {
+                            this.oppPlayer.faceUpOrbs = temp['faceUpOrbs'];
+                        }
+                        if (temp['bonds']) {
+                            this.oppPlayer.bonds = temp['bonds'];
+                        }
+                        if (temp['hand'] || temp['hand'] === 0) {
+                            this.oppPlayer.hand = temp['hand'];
                         }
                     }
-                    if (temp['support']) {
-                        this.thisPlayer.support = temp['support'];
-                        if (!this.seenCards[temp['support']] && temp['support'] !== '0')
-                            this.fetchCardData(temp['support']);
-
-                    }
-                    if (temp['deck'] || temp['deck'] === 0) {
-                        this.thisPlayer.deck = temp['deck'];
-                    }
-                    if (temp['retreat']) {
-                        this.thisPlayer.retreat = temp['retreat'];
-                    }
-                    if (temp['boundless']) {
-                        this.thisPlayer.boundless = temp['boundless'];
-                    }
-                    if (temp['orbs'] || temp['orbs'] === 0) {
-                        this.thisPlayer.orbs = temp['orbs'];
-                    }
-                    if (temp['knownOrbs']) {
-                        this.thisPlayer.knownOrbs = temp['knownOrbs'];
-                    }
-                    if (temp['faceUpOrbs']) {
-                        this.thisPlayer.faceUpOrbs = temp['faceUpOrbs'];
-                    }
-                    if (temp['bonds']) {
-                        this.thisPlayer.bonds = temp['bonds'];
-                    }
-                    if (temp['hand']) {
-                        this.thisPlayer.hand = temp['hand'];
-                        for(let i = 0; i < temp['hand'].length; i++) {
-                            if (!this.seenCards[temp['hand'][i].id])
-                                this.fetchCardData(temp['hand'][i].id);
+                    if (contents['rps']) {
+                        if (contents.rps === 'n') {
+                            // display Rock Paper Scissors
+                            this.rps = true;
                         }
                     }
-                }
-                if (contents['oppPlayer']) {
-                    temp = contents['oppPlayer'];
-                    if (temp['frontLine']) {
-                        this.oppPlayer.frontLine = temp['frontLine'];
-                        for(let i = 0; i < temp['frontLine'].length; i++) {
-                            if (!this.seenCards[temp['frontLine'][i].cards[0].id])
-                                this.fetchCardData(temp['frontLine'][i].cards[0].id);
-                        }
+                    if (contents['options']) {
+                        this.decipher(contents['options']);
                     }
-                    if (temp['backLine']) {
-                        this.oppPlayer.backLine = temp['backLine'];
-                        for(let i = 0; i < temp['backLine'].length; i++) {
-                            if (!this.seenCards[temp['backLine'][i].cards[0].id])
-                                this.fetchCardData(temp['backLine'][i].cards[0].id);
-                        }
+                    if (contents['firstPlayer']) {
+                        this.first = this.thisPlayer.username === contents['firstPlayer'];
                     }
-                    if (temp['support']) {
-                        this.oppPlayer.support = temp['support'];
-                        if (!this.seenCards[temp['support']] && temp['support'] !== '0')
-                            this.fetchCardData(temp['support']);
-                    }
-                    if (temp['deck'] || temp['deck'] === 0) {
-                        this.oppPlayer.deck = temp['deck'];
-                    }
-                    if (temp['retreat']) {
-                        this.oppPlayer.retreat = temp['retreat'];
-                    }
-                    if (temp['boundless']) {
-                        this.oppPlayer.boundless = temp['boundless'];
-                    }
-                    if (temp['orbs'] || temp['orbs'] === 0) {
-                        this.oppPlayer.orbs = temp['orbs'];
-                    }
-                    if (temp['knownOrbs']) {
-                        this.oppPlayer.knownOrbs = temp['knownOrbs'];
-                    }
-                    if (temp['faceUpOrbs']) {
-                        this.oppPlayer.faceUpOrbs = temp['faceUpOrbs'];
-                    }
-                    if (temp['bonds']) {
-                        this.oppPlayer.bonds = temp['bonds'];
-                    }
-                    if (temp['hand'] || temp['hand'] === 0) {
-                        this.oppPlayer.hand = temp['hand'];
-                    }
-                }
-                if (contents['rps']) {
-                    if (contents.rps === 'n') {
-                        // display Rock Paper Scissors
-                        this.rps = true;
-                    }
-                }
-                if (contents['options']) {
-                   this.decipher(contents['options']);
-                }
-                if (contents['firstPlayer']) {
-                    this.first = this.thisPlayer.username === contents['firstPlayer'];
-                }
-                if (contents['turnNum']) {
-                    this.turn = this.first && (contents['turnNum'] % 2 === 1)
+                    if (contents['turnNum']) {
+                        this.turn = this.first && (contents['turnNum'] % 2 === 1)
                             || !this.first && (contents['turnNum'] % 2 === 0);
+                    }
+                    if (contents['phaseNum']) {
+                        this.phase = contents['phaseNum'];
+                    }
+                } catch (e) {
+                    // eslint-disable-next-line no-console
+                   console.log(e);
                 }
-                if (contents['phaseNum']) {
-                    this.phase = contents['phaseNum'];
-                }
+
             }
         }
     }

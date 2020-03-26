@@ -65,6 +65,10 @@ class Unit {
         this.modifiers[key] = value;
     }
 
+    removeMod(key) {
+        delete this.modifiers[key];
+    }
+
     hasSymbol(symbol) {
         return this.cards[0].get().symbol === symbol;
     }
